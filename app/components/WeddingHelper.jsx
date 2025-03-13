@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   SkipForward, MessageSquare, Music, Folder, Upload, Plus, Trash2, MoveUp, MoveDown,
-  Calendar, Clock, HeartHandshake, Heart, ChevronRight, CheckCircle2, Settings
+  Calendar, Clock, HeartHandshake, Heart, ChevronRight, CheckCircle2, Settings, Edit, Maximize2
 } from 'lucide-react';
 import { defaultProgram } from '../lib/defaultProgram';
 import { 
@@ -17,6 +17,7 @@ import { loadPresetMusic } from '../lib/presetMusicStorage';
 import MusicPlayer from './MusicPlayer';
 import TimerControl from './TimerControl';
 import PresetMusicEditor from './PresetMusicEditor';
+import ScriptEditDialog from './ScriptEditDialog';
 
 const WeddingHelper = () => {
   // 状态管理
@@ -29,6 +30,10 @@ const WeddingHelper = () => {
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [isCustomizing, setIsCustomizing] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
+  
+  // 司仪台词编辑相关状态
+  const [scriptDialogOpen, setScriptDialogOpen] = useState(false);
+  const [currentEditingStep, setCurrentEditingStep] = useState(null);
 
   // 计算完成进度
   const progress = useMemo(() => {
@@ -205,6 +210,18 @@ const WeddingHelper = () => {
       setCurrentStep(index + 1);
     } else if (currentStep === index + 1) {
       setCurrentStep(index);
+    }
+  };
+
+  // 处理司仪台词编辑
+  const handleOpenScriptDialog = (index) => {
+    setCurrentEditingStep(index);
+    setScriptDialogOpen(true);
+  };
+
+  const handleSaveScript = (newScript) => {
+    if (currentEditingStep !== null) {
+      updateProgram(currentEditingStep, 'script', newScript);
     }
   };
 
@@ -550,14 +567,19 @@ const WeddingHelper = () => {
                           placeholder="环节名称"
                         />
                       </td>
-                      <td className="p-3">
-                        <textarea
-                          value={step.script}
-                          onChange={(e) => updateProgram(index, 'script', e.target.value)}
-                          className="w-full p-2 border rounded-lg"
-                          rows="2"
-                          placeholder="请输入司仪台词..."
-                        />
+                      <td className="p-3 min-w-[280px]">
+                        <div className="relative">
+                          <div className="border rounded-lg p-3 bg-gray-50 min-h-[100px] max-h-[150px] overflow-y-auto whitespace-pre-wrap mb-2">
+                            {step.script || <span className="text-gray-400">暂无台词内容</span>}
+                          </div>
+                          <button
+                            onClick={() => handleOpenScriptDialog(index)}
+                            className="text-blue-500 hover:text-blue-700 flex items-center text-sm"
+                          >
+                            <Maximize2 size={14} className="mr-1" />
+                            展开编辑台词
+                          </button>
+                        </div>
                       </td>
                       <td className="p-3">
                         <select
@@ -700,8 +722,22 @@ const WeddingHelper = () => {
             <div className="bg-gray-50 rounded-xl p-5 mb-6 border border-gray-100">
               <div className="flex items-start">
                 <MessageSquare className="text-pink-500 mt-1 mr-3 flex-shrink-0" />
-                <div className="text-lg text-gray-700 leading-relaxed">
-                  {customProgram[currentStep]?.script}
+                <div className="flex-grow">
+                  <div className="text-lg text-gray-700 leading-relaxed max-h-72 overflow-y-auto pr-2 whitespace-pre-wrap">
+                    {customProgram[currentStep]?.script}
+                  </div>
+                  <div className="mt-2 flex justify-end">
+                    <button
+                      onClick={() => {
+                        setCurrentEditingStep(currentStep);
+                        setScriptDialogOpen(true);
+                      }}
+                      className="text-blue-500 hover:text-blue-700 flex items-center text-sm"
+                    >
+                      <Edit size={14} className="mr-1" />
+                      编辑台词
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -781,11 +817,20 @@ const WeddingHelper = () => {
           </div>
           
           <div className="text-center text-gray-500 text-xs mb-6">
-            <p>由❤️与代码精心制作</p>
+            <p>由毛立鹏代码精心制作</p>
             <p className="mt-1">祝您的婚礼圆满成功</p>
           </div>
         </div>
       )}
+
+      {/* 司仪台词编辑对话框 */}
+      <ScriptEditDialog
+        isOpen={scriptDialogOpen}
+        onClose={() => setScriptDialogOpen(false)}
+        script={currentEditingStep !== null ? customProgram[currentEditingStep]?.script : ''}
+        stepName={currentEditingStep !== null ? customProgram[currentEditingStep]?.name : ''}
+        onSave={handleSaveScript}
+      />
 
       {/* 庆祝动画效果，在最后一步完成时展示 */}
       {showConfetti && (
