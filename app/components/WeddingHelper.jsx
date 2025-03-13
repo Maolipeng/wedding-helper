@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   SkipForward, MessageSquare, Music, Folder, Upload, Plus, Trash2, MoveUp, MoveDown,
-  Calendar, Clock, HeartHandshake, Heart, ChevronRight, CheckCircle2
+  Calendar, Clock, HeartHandshake, Heart, ChevronRight, CheckCircle2, Settings
 } from 'lucide-react';
 import { defaultProgram } from '../lib/defaultProgram';
 import { 
@@ -13,8 +13,10 @@ import {
   getMusicURL,
   deleteMusicFromDB 
 } from '../lib/musicStorage';
+import { loadPresetMusic } from '../lib/presetMusicStorage';
 import MusicPlayer from './MusicPlayer';
 import TimerControl from './TimerControl';
+import PresetMusicEditor from './PresetMusicEditor';
 
 const WeddingHelper = () => {
   // 状态管理
@@ -23,7 +25,7 @@ const WeddingHelper = () => {
   const [customProgram, setCustomProgram] = useState([]);
   const [uploadedMusic, setUploadedMusic] = useState([]);
   const [presetMusicLibrary, setPresetMusicLibrary] = useState([]);
-  const [activeTab, setActiveTab] = useState('preset'); // 'preset' or 'uploaded'
+  const [activeTab, setActiveTab] = useState('preset'); // 'preset', 'uploaded', 'manage'
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [isCustomizing, setIsCustomizing] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
@@ -66,16 +68,10 @@ const WeddingHelper = () => {
     setCustomProgram(program);
     
     // 加载预设音乐库
-    const loadPresetMusic = async () => {
+    const loadPresets = async () => {
       try {
-        const response = await fetch('/audio/music-list.json');
-        if (response.ok) {
-          const data = await response.json();
-          setPresetMusicLibrary(data);
-        } else {
-          console.error('无法加载预设音乐列表');
-          setPresetMusicLibrary([]);
-        }
+        const presets = await loadPresetMusic();
+        setPresetMusicLibrary(presets);
       } catch (error) {
         console.error('加载预设音乐列表失败:', error);
         setPresetMusicLibrary([]);
@@ -92,7 +88,7 @@ const WeddingHelper = () => {
       }
     };
     
-    Promise.all([loadPresetMusic(), loadUploadedMusic()]).then(() => {
+    Promise.all([loadPresets(), loadUploadedMusic()]).then(() => {
       setInitialized(true);
     });
   }, []);
@@ -282,14 +278,39 @@ const WeddingHelper = () => {
     setIsMusicPlaying(isPlaying);
   };
 
+  // 更新预设音乐库
+  const handlePresetMusicUpdate = (updatedList) => {
+    setPresetMusicLibrary(updatedList);
+    
+    // 检查是否有环节使用了被删除的预设音乐，并更新它们
+    const deletedPaths = presetMusicLibrary
+      .filter(oldMusic => !updatedList.some(newMusic => newMusic.id === oldMusic.id))
+      .map(music => music.path);
+    
+    if (deletedPaths.length > 0) {
+      const updatedProgram = customProgram.map(step => {
+        if (step.isPreset && deletedPaths.includes(step.music)) {
+          return {
+            ...step,
+            music: '',
+            musicSource: '',
+            musicName: '请选择音乐',
+            isPreset: false
+          };
+        }
+        return step;
+      });
+      
+      setCustomProgram(updatedProgram);
+    }
+  };
+
   // 获取当前环节的图标
   const getStepIcon = (stepName) => {
     const name = stepName.toLowerCase();
     if (name.includes('入场')) return <Calendar size={20} className="text-blue-500" />;
     if (name.includes('交换') || name.includes('戒指')) return <HeartHandshake size={20} className="text-pink-500" />;
     if (name.includes('致辞') || name.includes('宣言')) return <MessageSquare size={20} className="text-purple-500" />;
-    if (name.includes('蛋糕')) return <Cake size={20} className="text-yellow-500" />;
-    if (name.includes('花球')) return <Flower size={20} className="text-green-500" />;
     // 默认图标
     return <Calendar size={20} className="text-gray-500" />;
   };
@@ -349,6 +370,15 @@ const WeddingHelper = () => {
                 <Upload className="inline-block mr-2" size={18} />
                 上传音乐
               </button>
+              <button 
+                onClick={() => setActiveTab('manage')}
+                className={`px-6 py-3 font-medium ${activeTab === 'manage' 
+                  ? 'border-b-2 border-pink-500 text-pink-500' 
+                  : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                <Settings className="inline-block mr-2" size={18} />
+                管理预设
+              </button>
             </div>
             
             {activeTab === 'uploaded' && (
@@ -405,18 +435,30 @@ const WeddingHelper = () => {
             {activeTab === 'preset' && (
               <div>
                 <p className="text-sm text-gray-600 mb-4">
-                  这些音乐文件位于项目的 public/audio 目录下
+                  预设音乐可以在"管理预设"标签中添加或修改
                 </p>
                 
                 {presetMusicLibrary.length > 0 ? (
                   <div className="mt-2">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                       {presetMusicLibrary.map((music, idx) => (
-                        <div key={idx} className="bg-white border border-gray-100 rounded-lg p-3 flex items-center shadow-sm hover:shadow-md transition-shadow">
-                          <div className="bg-blue-100 rounded-full p-2 mr-3">
-                            <Music className="text-blue-500" size={16} />
+                        <div key={music.id || idx} className="bg-white border border-gray-100 rounded-lg p-3 flex items-center shadow-sm hover:shadow-md transition-shadow">
+                          <div className={`rounded-full p-2 mr-3 ${
+                            music.category ? 'bg-blue-100' : 'bg-gray-100'
+                          }`}>
+                            <Music className={`${
+                              music.category ? 'text-blue-500' : 'text-gray-500'
+                            }`} size={16} />
                           </div>
-                          <span className="text-sm font-medium truncate">{music.name}</span>
+                          <div className="overflow-hidden">
+                            <div className="font-medium truncate">{music.name}</div>
+                            <div className="text-xs text-gray-500 truncate">{music.path}</div>
+                            {music.category && (
+                              <div className="text-xs text-blue-500 mt-1">
+                                {music.category}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -425,10 +467,17 @@ const WeddingHelper = () => {
                   <div className="text-center py-10 text-gray-500">
                     <Folder size={40} className="mx-auto mb-4 opacity-20" />
                     <p className="italic">未找到预设音乐</p>
-                    <p className="text-sm mt-2">请检查 public/audio 目录</p>
+                    <p className="text-sm mt-2">请前往"管理预设"标签添加</p>
                   </div>
                 )}
               </div>
+            )}
+            
+            {activeTab === 'manage' && (
+              <PresetMusicEditor 
+                presetList={presetMusicLibrary} 
+                onUpdate={handlePresetMusicUpdate} 
+              />
             )}
           </div>
           
@@ -732,8 +781,8 @@ const WeddingHelper = () => {
           </div>
           
           <div className="text-center text-gray-500 text-xs mb-6">
-            <p>由毛立鹏❤️精心制作</p>
-            <p className="mt-1">祝婚礼圆满成功</p>
+            <p>由❤️与代码精心制作</p>
+            <p className="mt-1">祝您的婚礼圆满成功</p>
           </div>
         </div>
       )}
