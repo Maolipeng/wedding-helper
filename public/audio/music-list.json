@@ -1,0 +1,44 @@
+[
+    {
+        "name": "婚礼进行曲",
+        "filename": "wedding-march.mp3",
+        "path": "/audio/wedding-march.mp3",
+        "category": "仪式"
+    },
+    {
+        "name": "浪漫背景音乐",
+        "filename": "romantic-bgm.mp3",
+        "path": "/audio/romantic-bgm.mp3",
+        "category": "背景音乐"
+    },
+    {
+        "name": "新郎入场曲",
+        "filename": "groom-entrance.mp3",
+        "path": "/audio/groom-entrance.mp3",
+        "category": "入场"
+    },
+    {
+        "name": "新娘入场曲",
+        "filename": "bride-entrance.mp3",
+        "path": "/audio/bride-entrance.mp3",
+        "category": "入场"
+    },
+    {
+        "name": "欢快背景音乐",
+        "filename": "cheerful-bgm.mp3",
+        "path": "/audio/cheerful-bgm.mp3",
+        "category": "背景音乐"
+    },
+    {
+        "name": "甜蜜背景音乐",
+        "filename": "sweet-bgm.mp3",
+        "path": "/audio/sweet-bgm.mp3",
+        "category": "背景音乐"
+    },
+    {
+        "name": "欢送音乐",
+        "filename": "farewell-music.mp3",
+        "path": "/audio/farewell-music.mp3",
+        "category": "结束"
+    }
+]
