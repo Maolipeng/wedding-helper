@@ -3,14 +3,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   SkipForward, MessageSquare, Music, Folder, Upload, Plus, Trash2, MoveUp, MoveDown,
-  Calendar, Clock, HeartHandshake, Heart, ChevronRight, CheckCircle2, Settings, Edit, Maximize2
+  Calendar, Clock, HeartHandshake, Heart, ChevronRight, CheckCircle2, Settings, Edit, Maximize2, Cog
 } from 'lucide-react';
 import { defaultProgram } from '../lib/defaultProgram';
 import { 
   initMusicDB, 
   saveMusicToDB, 
   getAllMusicInfo,
-  getMusicURL,
   deleteMusicFromDB 
 } from '../lib/musicStorage';
 import { loadPresetMusic } from '../lib/presetMusicStorage';
@@ -18,6 +17,13 @@ import MusicPlayer from './MusicPlayer';
 import TimerControl from './TimerControl';
 import PresetMusicEditor from './PresetMusicEditor';
 import ScriptEditDialog from './ScriptEditDialog';
+import SettingsDialog from './SettingsDialog';
+
+// 默认设置
+const DEFAULT_SETTINGS = {
+  autoPlayMusic: true,   // 默认自动播放音乐
+  autoStartTimer: true   // 默认自动开始计时
+};
 
 const WeddingHelper = () => {
   // 状态管理
@@ -34,6 +40,11 @@ const WeddingHelper = () => {
   // 司仪台词编辑相关状态
   const [scriptDialogOpen, setScriptDialogOpen] = useState(false);
   const [currentEditingStep, setCurrentEditingStep] = useState(null);
+  
+  // 设置相关状态
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
+  const [resetKey, setResetKey] = useState(0); // 用于重置组件状态的键
 
   // 计算完成进度
   const progress = useMemo(() => {
@@ -46,17 +57,19 @@ const WeddingHelper = () => {
     if (typeof window !== 'undefined') {
       try {
         const savedProgram = localStorage.getItem('weddingProgram');
+        const savedSettings = localStorage.getItem('weddingSettings');
         
-        if (savedProgram) {
-          return {
-            program: JSON.parse(savedProgram)
-          };
-        }
+        const result = { 
+          program: savedProgram ? JSON.parse(savedProgram) : defaultProgram,
+          settings: savedSettings ? JSON.parse(savedSettings) : DEFAULT_SETTINGS
+        };
+        
+        return result;
       } catch (e) {
         console.error('无法从本地存储加载数据', e);
       }
     }
-    return { program: defaultProgram };
+    return { program: defaultProgram, settings: DEFAULT_SETTINGS };
   };
 
   // 初始化 - 在客户端加载时执行
@@ -68,9 +81,10 @@ const WeddingHelper = () => {
       console.error('音乐数据库初始化失败:', err);
     });
 
-    // 加载保存的婚礼流程
-    const { program } = loadFromLocalStorage();
+    // 加载保存的婚礼流程和设置
+    const { program, settings } = loadFromLocalStorage();
     setCustomProgram(program);
+    setSettings(settings);
     
     // 加载预设音乐库
     const loadPresets = async () => {
@@ -105,14 +119,26 @@ const WeddingHelper = () => {
     try {
       localStorage.setItem('weddingProgram', JSON.stringify(customProgram));
     } catch (e) {
-      console.error('无法保存到本地存储', e);
+      console.error('无法保存流程到本地存储', e);
     }
   }, [customProgram, initialized]);
+
+  // 保存设置到本地存储
+  useEffect(() => {
+    if (!initialized) return;
+    
+    try {
+      localStorage.setItem('weddingSettings', JSON.stringify(settings));
+    } catch (e) {
+      console.error('无法保存设置到本地存储', e);
+    }
+  }, [settings, initialized]);
 
   // 跳到下一个环节
   const nextStep = () => {
     if (currentStep < customProgram.length - 1) {
       setCurrentStep(currentStep + 1);
+      setResetKey(prev => prev + 1); // 更新重置键，用于重置音乐和计时器组件
 
       // 如果是最后一步，显示庆祝动画
       if (currentStep === customProgram.length - 2) {
@@ -120,6 +146,12 @@ const WeddingHelper = () => {
         setTimeout(() => setShowConfetti(false), 3000);
       }
     }
+  };
+
+  // 切换到指定环节
+  const switchToStep = (index) => {
+    setCurrentStep(index);
+    setResetKey(prev => prev + 1); // 更新重置键，用于重置音乐和计时器组件
   };
 
   // 自定义流程
@@ -223,6 +255,11 @@ const WeddingHelper = () => {
     if (currentEditingStep !== null) {
       updateProgram(currentEditingStep, 'script', newScript);
     }
+  };
+
+  // 处理设置更新
+  const handleSaveSettings = (newSettings) => {
+    setSettings(newSettings);
   };
 
   // 上传音乐文件
@@ -504,13 +541,22 @@ const WeddingHelper = () => {
                 <Calendar className="mr-2 text-blue-500" />
                 婚礼流程环节
               </h3>
-              <button 
-                onClick={addNewStep}
-                className="flex items-center bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-full shadow-md transition-all duration-200"
-              >
-                <Plus size={18} className="mr-1" />
-                添加环节
-              </button>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setSettingsDialogOpen(true)}
+                  className="flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 py-2 px-4 rounded-full transition-all duration-200"
+                >
+                  <Cog size={18} className="mr-1" />
+                  设置
+                </button>
+                <button 
+                  onClick={addNewStep}
+                  className="flex items-center bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-full shadow-md transition-all duration-200"
+                >
+                  <Plus size={18} className="mr-1" />
+                  添加环节
+                </button>
+              </div>
             </div>
             
             <div className="overflow-x-auto">
@@ -680,12 +726,21 @@ const WeddingHelper = () => {
         <div className="w-full max-w-4xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <h1 className="text-3xl font-bold gradient-text">婚礼助手</h1>
-            <button
-              onClick={handleCustomize}
-              className="bg-white shadow rounded-full py-2 px-4 text-gray-700 hover:text-pink-500 hover:shadow-md transition-all duration-200"
-            >
-              自定义流程与音乐
-            </button>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setSettingsDialogOpen(true)}
+                className="bg-white shadow rounded-full p-2 text-gray-600 hover:text-pink-500 hover:shadow-md transition-all duration-200"
+                title="设置"
+              >
+                <Cog size={20} />
+              </button>
+              <button
+                onClick={handleCustomize}
+                className="bg-white shadow rounded-full py-2 px-4 text-gray-700 hover:text-pink-500 hover:shadow-md transition-all duration-200"
+              >
+                自定义流程与音乐
+              </button>
+            </div>
           </div>
 
           {/* 进度条 */}
@@ -715,7 +770,9 @@ const WeddingHelper = () => {
             <div className="mb-6">
               <TimerControl 
                 initialSeconds={customProgram[currentStep]?.duration * 60 || 0} 
-                onTimerEnd={() => {}} 
+                onTimerEnd={() => {}}
+                autoStart={settings.autoStartTimer}
+                resetKey={resetKey}
               />
             </div>
 
@@ -761,12 +818,14 @@ const WeddingHelper = () => {
                     }
                     isPreset={customProgram[currentStep]?.isPreset}
                     onPlayStateChange={handleMusicPlayStateChange}
+                    autoPlay={settings.autoPlayMusic}
+                    resetKey={resetKey}
                   />
                 )}
               </div>
               <div className="text-sm text-gray-500 ml-8">
                 {(customProgram[currentStep]?.music || customProgram[currentStep]?.musicSource)
-                  ? '点击播放按钮控制音乐'
+                  ? settings.autoPlayMusic ? '切换环节时自动播放音乐' : '点击播放按钮控制音乐'
                   : '此环节未设置音乐，请在自定义流程中添加'
                 }
               </div>
@@ -794,9 +853,7 @@ const WeddingHelper = () => {
               {customProgram.map((step, index) => (
                 <div
                   key={step.id}
-                  onClick={() => {
-                    setCurrentStep(index);
-                  }}
+                  onClick={() => switchToStep(index)}
                   className={`flex-shrink-0 mx-2 p-3 rounded-lg cursor-pointer transition-all duration-200 ${
                     currentStep === index
                       ? 'bg-pink-100 border-2 border-pink-500 shadow-md transform -translate-y-1'
@@ -817,7 +874,7 @@ const WeddingHelper = () => {
           </div>
           
           <div className="text-center text-gray-500 text-xs mb-6">
-            <p>由毛立鹏代码精心制作</p>
+            <p>由❤️毛立鹏精心制作</p>
             <p className="mt-1">祝您的婚礼圆满成功</p>
           </div>
         </div>
@@ -830,6 +887,14 @@ const WeddingHelper = () => {
         script={currentEditingStep !== null ? customProgram[currentEditingStep]?.script : ''}
         stepName={currentEditingStep !== null ? customProgram[currentEditingStep]?.name : ''}
         onSave={handleSaveScript}
+      />
+
+      {/* 设置对话框 */}
+      <SettingsDialog 
+        isOpen={settingsDialogOpen}
+        onClose={() => setSettingsDialogOpen(false)}
+        settings={settings}
+        onSave={handleSaveSettings}
       />
 
       {/* 庆祝动画效果，在最后一步完成时展示 */}

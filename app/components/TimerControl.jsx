@@ -3,7 +3,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Clock, AlertCircle } from 'lucide-react';
 
-const TimerControl = ({ initialSeconds, onTimerEnd }) => {
+const TimerControl = ({ 
+  initialSeconds, 
+  onTimerEnd,
+  autoStart = false, // 新增: 自动开始计时选项
+  resetKey = 0 // 新增: 重置键，当它改变时重置计时器
+}) => {
   const [timeLeft, setTimeLeft] = useState(initialSeconds);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isAlmostDone, setIsAlmostDone] = useState(false);
@@ -11,11 +16,16 @@ const TimerControl = ({ initialSeconds, onTimerEnd }) => {
 
   // 当初始时间改变时重置计时器
   useEffect(() => {
+    clearInterval(timerRef.current);
     setTimeLeft(initialSeconds);
     setIsPlaying(false);
     setIsAlmostDone(false);
-    clearInterval(timerRef.current);
-  }, [initialSeconds]);
+    
+    // 如果设置了自动开始，则开始计时
+    if (autoStart) {
+      startTimer();
+    }
+  }, [initialSeconds, resetKey, autoStart]);
 
   // 监控是否接近结束
   useEffect(() => {
@@ -27,23 +37,36 @@ const TimerControl = ({ initialSeconds, onTimerEnd }) => {
     }
   }, [timeLeft]);
 
+  // 开始计时器的函数
+  const startTimer = () => {
+    clearInterval(timerRef.current);
+    setIsPlaying(true);
+    
+    timerRef.current = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          if (onTimerEnd) onTimerEnd();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // 停止计时器的函数
+  const stopTimer = () => {
+    clearInterval(timerRef.current);
+    setIsPlaying(false);
+  };
+
   // 开始/暂停计时器
   const toggleTimer = () => {
     if (isPlaying) {
-      clearInterval(timerRef.current);
+      stopTimer();
     } else {
-      timerRef.current = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current);
-            if (onTimerEnd) onTimerEnd();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+      startTimer();
     }
-    setIsPlaying(!isPlaying);
   };
 
   // 清理定时器

@@ -4,7 +4,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Volume2, VolumeX, Music } from 'lucide-react';
 import { getMusicURL } from '../lib/musicStorage';
 
-const MusicPlayer = ({ musicSource, isPreset = false, onPlayStateChange }) => {
+const MusicPlayer = ({ 
+  musicSource, 
+  isPreset = false, 
+  onPlayStateChange,
+  autoPlay = false, // 新增: 自动播放选项
+  resetKey = 0 // 新增: 重置键，当它改变时重新加载音乐
+}) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.7);
   const [isMuted, setIsMuted] = useState(false);
@@ -50,6 +56,13 @@ const MusicPlayer = ({ musicSource, isPreset = false, onPlayStateChange }) => {
         // 预加载音频
         audioRef.current.load();
         setIsLoading(false);
+        
+        // 如果设置了自动播放，则开始播放
+        if (autoPlay) {
+          setTimeout(() => {
+            playAudio();
+          }, 300); // 短暂延迟确保音频已加载
+        }
       } catch (error) {
         console.error('加载音频失败:', error);
         setIsLoading(false);
@@ -64,7 +77,7 @@ const MusicPlayer = ({ musicSource, isPreset = false, onPlayStateChange }) => {
         audioRef.current.pause();
       }
     };
-  }, [musicSource, isPreset]);
+  }, [musicSource, isPreset, autoPlay, resetKey]);
 
   // 监听音频结束
   useEffect(() => {
@@ -91,23 +104,35 @@ const MusicPlayer = ({ musicSource, isPreset = false, onPlayStateChange }) => {
     }
   }, [volume, isMuted]);
 
-  // 播放/暂停切换
-  const togglePlay = () => {
+  // 播放音频的函数
+  const playAudio = () => {
     if (!audioRef.current || !audioUrl) return;
     
+    audioRef.current.play()
+      .then(() => {
+        setIsPlaying(true);
+        if (onPlayStateChange) onPlayStateChange(true);
+      })
+      .catch(error => {
+        console.error("播放音乐失败:", error);
+      });
+  };
+  
+  // 暂停音频的函数
+  const pauseAudio = () => {
+    if (!audioRef.current || !audioUrl) return;
+    
+    audioRef.current.pause();
+    setIsPlaying(false);
+    if (onPlayStateChange) onPlayStateChange(false);
+  };
+
+  // 播放/暂停切换
+  const togglePlay = () => {
     if (isPlaying) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-      if (onPlayStateChange) onPlayStateChange(false);
+      pauseAudio();
     } else {
-      audioRef.current.play()
-        .then(() => {
-          setIsPlaying(true);
-          if (onPlayStateChange) onPlayStateChange(true);
-        })
-        .catch(error => {
-          console.error("播放音乐失败:", error);
-        });
+      playAudio();
     }
   };
 
