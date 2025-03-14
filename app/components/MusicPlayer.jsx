@@ -20,8 +20,10 @@ const MusicPlayer = ({
   const [duration, setDuration] = useState(0);
   const [showVolumeControl, setShowVolumeControl] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const audioRef = useRef(null);
   const volumeControlRef = useRef(null);
+  const progressBarRef = useRef(null);
 
   // 检测是否为移动设备
   useEffect(() => {
@@ -183,12 +185,51 @@ const MusicPlayer = ({
     const progressBar = e.currentTarget;
     const rect = progressBar.getBoundingClientRect();
     const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
-    const clickPosition = (clientX - rect.left) / rect.width;
+    const clickPosition = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     const newTime = clickPosition * duration;
     
     // 设置新的播放位置
     audioRef.current.currentTime = newTime;
     setCurrentTime(newTime);
+    
+    // 如果是触摸事件，标记开始拖动
+    if (e.type.includes('touch')) {
+      setIsDragging(true);
+    }
+  };
+  
+  // 处理拖动进度条
+  const handleTouchMove = (e) => {
+    if (!isDragging || !audioRef.current || !audioUrl || duration === 0) return;
+    
+    // 阻止页面滚动
+    e.preventDefault();
+    
+    const progressBar = progressBarRef.current;
+    const rect = progressBar.getBoundingClientRect();
+    const clientX = e.touches[0].clientX;
+    const position = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    
+    // 更新当前时间显示（但不立即设置音频时间，提高性能）
+    setCurrentTime(position * duration);
+  };
+  
+  // 处理触摸结束，完成拖动
+  const handleTouchEnd = (e) => {
+    if (!isDragging || !audioRef.current || !audioUrl || duration === 0) return;
+    
+    const progressBar = progressBarRef.current;
+    const rect = progressBar.getBoundingClientRect();
+    const clientX = e.changedTouches[0].clientX;
+    const position = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    
+    // 设置最终的播放位置
+    const newTime = position * duration;
+    audioRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+    
+    // 结束拖动状态
+    setIsDragging(false);
   };
 
   // 播放/暂停切换
@@ -252,9 +293,12 @@ const MusicPlayer = ({
       {audioUrl && !isLoading && (
         <div className="w-full space-y-1">
           <div 
+            ref={progressBarRef}
             className="relative w-full h-3 bg-gray-200 rounded-full cursor-pointer group touch-manipulation"
             onClick={seekAudio}
             onTouchStart={seekAudio}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           >
             <div 
               className="absolute left-0 top-0 h-full bg-gradient-to-r from-blue-500 to-pink-500 rounded-full pointer-events-none"
