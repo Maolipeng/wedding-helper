@@ -1,11 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-  Cog,
-  Heart,
-  Music  // 添加 Music 图标导入
-} from 'lucide-react';
+import { Cog, Heart, Music, RotateCcw, AlertTriangle } from 'lucide-react';
 import { defaultProgram } from '../lib/defaultProgram';
 import {
   initMusicDB,
@@ -50,13 +46,36 @@ const WeddingHelper = () => {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
   const [resetKey, setResetKey] = useState(0); // 用于重置组件状态的键
+  // 添加重置确认对话框状态
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  // 添加重置数据的函数
+  const handleResetData = () => {
+    // 打开确认对话框
+    setResetDialogOpen(true);
+  };
 
-  // 计算完成进度
-  const progress = useMemo(() => {
-    if (customProgram.length === 0) return 0;
-    return ((currentStep + 1) / customProgram.length) * 100;
-  }, [currentStep, customProgram]);
+  // 实际执行重置的函数
+  const confirmReset = () => {
+    try {
+      // 清除本地存储中的所有相关数据
+      localStorage.removeItem('weddingProgram');
+      localStorage.removeItem('weddingSettings');
+      localStorage.removeItem('weddingPresetMusic');
 
+      // 关闭对话框
+      setResetDialogOpen(false);
+
+      // 显示成功消息
+      alert('数据已重置，页面将刷新以应用更改。');
+
+      // 刷新页面以重新加载所有默认设置
+      window.location.reload();
+    } catch (error) {
+      console.error('重置数据失败:', error);
+      alert('重置数据失败，请重试。');
+      setResetDialogOpen(false);
+    }
+  };
   // 从本地存储加载数据或使用默认数据
   const loadFromLocalStorage = () => {
     if (typeof window !== 'undefined') {
@@ -302,6 +321,7 @@ const WeddingHelper = () => {
         isCustomizing={isCustomizing}
         onToggleCustomize={handleCustomize}
         onOpenSettings={() => setSettingsDialogOpen(true)}
+        onResetData={handleResetData} // 添加这一行，传递重置数据函数
       />
 
       {isCustomizing ? (
@@ -319,6 +339,13 @@ const WeddingHelper = () => {
           <div className="flex justify-between items-center mb-6 hidden md:flex">
             <h1 className="text-3xl font-bold gradient-text">婚礼助手</h1>
             <div className="flex space-x-3">
+              <button
+                onClick={handleResetData}
+                className="bg-white shadow rounded-full p-2 text-gray-600 hover:text-red-500 hover:shadow-md transition-all duration-200"
+                title="重置数据"
+              >
+                <RotateCcw size={20} />
+              </button>
               <button
                 onClick={() => setSettingsDialogOpen(true)}
                 className="bg-white shadow rounded-full p-2 text-gray-600 hover:text-pink-500 hover:shadow-md transition-all duration-200"

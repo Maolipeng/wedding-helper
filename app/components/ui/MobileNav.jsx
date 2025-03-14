@@ -1,12 +1,13 @@
 "use client";
 
 import React from 'react';
-import { Cog, Menu, X, Edit, ArrowLeft } from 'lucide-react';
+import { Cog, Menu, X, Edit, ArrowLeft, RotateCcw } from 'lucide-react';
 
 const MobileNav = ({ 
   isCustomizing, 
   onToggleCustomize, 
-  onOpenSettings 
+  onOpenSettings,
+  onResetData // 新增: 重置数据函数
 }) => {
   const [menuOpen, setMenuOpen] = React.useState(false);
   
@@ -20,6 +21,11 @@ const MobileNav = ({
   const handleSettingsClick = () => {
     toggleMenu();
     onOpenSettings();
+  };
+  
+  const handleResetClick = () => {
+    toggleMenu();
+    onResetData();
   };
   
   return (
@@ -73,6 +79,15 @@ const MobileNav = ({
                 >
                   <Cog size={18} className="mr-3 text-gray-600" />
                   <span>设置</span>
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={handleResetClick}
+                  className="w-full py-3 px-4 flex items-center text-left rounded-lg hover:bg-gray-100"
+                >
+                  <RotateCcw size={18} className="mr-3 text-red-500" />
+                  <span>重置所有数据</span>
                 </button>
               </li>
             </ul>
