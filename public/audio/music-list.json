@@ -34,5 +34,11 @@
         "name": "这世界那么多人",
         "path": "/audio/这世界那么多人-莫文蔚.mp3",
         "category": "温馨"
+    },
+    {
+        "id": "preset7",
+        "name": "Stay With Me",
+        "path": "/audio/Stay With Me.mp3",
+        "category": "浪漫"
     }
 ]
