@@ -1,6 +1,42 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
+[data-theme="wedding"] {
+  --p: 336 88% 57%;
+  /* primary */
+  --pc: 0 0% 100%;
+  /* primary-content */
+  --s: 224 91% 63%;
+  /* secondary */
+  --sc: 0 0% 100%;
+  /* secondary-content */
+  --a: 38 92% 50%;
+  /* accent */
+  --ac: 0 0% 100%;
+  /* accent-content */
+  --n: 222 16% 28%;
+  /* neutral */
+  --nc: 0 0% 100%;
+  /* neutral-content */
+  --b1: 0 0% 100%;
+  /* base-100 */
+  --b2: 210 20% 96%;
+  /* base-200 */
+  --b3: 214 32% 91%;
+  /* base-300 */
+  --bc: 215 28% 17%;
+  /* base-content */
+
+  --in: 198 93% 60%;
+  /* info */
+  --su: 158 64% 52%;
+  /* success */
+  --wa: 43 96% 56%;
+  /* warning */
+  --er: 0 91% 71%;
+  /* error */
+}
+
 :root {
   --foreground-rgb: 51, 51, 51;
   --background-rgb: 245, 248, 252;
@@ -64,15 +100,15 @@ select:focus {
 }
 
 /* 范围滑块样式 */
-input[type="range"] {
+/* input[type="range"] {
   appearance: none;
   background-color: #e5e7eb;
   height: 0.375rem;
   border-radius: 0.5rem;
   margin: 0.5rem 0;
-}
+} */
 
-input[type="range"]::-webkit-slider-thumb {
+/* input[type="range"]::-webkit-slider-thumb {
   appearance: none;
   width: 1rem;
   height: 1rem;
@@ -85,7 +121,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 input[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.1);
-}
+} */
 
 /* 按钮效果 */
 button {

@@ -475,7 +475,7 @@ const AudioTrimmer = ({
                 }
               }
             }}
-            className="range range-primary range-sm" 
+            className="range range-accent"
           />
         </div>
         
