@@ -128,6 +128,9 @@ const AudioTrimmer = ({
     
     const canvas = waveformCanvasRef.current;
     const ctx = canvas.getContext('2d');
+    // 动态设置canvas尺寸
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
     const width = canvas.width;
     const height = canvas.height;
     
@@ -188,6 +191,9 @@ const AudioTrimmer = ({
     
     const canvas = waveformCanvasRef.current;
     const ctx = canvas.getContext('2d');
+    // 动态设置canvas尺寸
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
     const width = canvas.width;
     const height = canvas.height;
     
@@ -248,6 +254,9 @@ const AudioTrimmer = ({
     
     const canvas = progressCanvasRef.current;
     const ctx = canvas.getContext('2d');
+    // 动态设置canvas尺寸
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
     const width = canvas.width;
     const height = canvas.height;
     
@@ -333,6 +342,19 @@ const AudioTrimmer = ({
   }, [isPlaying, endPoint, startPoint]);
   
   // 当裁剪点变更时更新选中区域
+  // 添加窗口大小变化监听
+  useEffect(() => {
+    const handleResize = () => {
+      if (waveformCanvasRef.current) {
+        drawWaveform(audioBuffer);
+      }
+      updateSelectedArea();
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     updateSelectedArea();
   }, [startPoint, endPoint, currentTime, isPlaying, duration]);
@@ -428,7 +450,7 @@ const AudioTrimmer = ({
           {/* 基础波形 */}
           <canvas 
             ref={waveformCanvasRef} 
-            width={800} 
+            width={null} 
             height={128} 
             className="w-full h-full absolute top-0 left-0"
           />
@@ -436,7 +458,7 @@ const AudioTrimmer = ({
           {/* 选择区域和播放头 */}
           <canvas 
             ref={progressCanvasRef} 
-            width={800} 
+            width={null} 
             height={128} 
             className="w-full h-full absolute top-0 left-0"
           />
