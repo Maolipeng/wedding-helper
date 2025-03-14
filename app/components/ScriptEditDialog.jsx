@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { X, Save, Sparkles } from 'lucide-react';
+// 引入 Tauri API
+import { invoke } from '@tauri-apps/api/core';
 
 const ScriptEditDialog = ({ 
   isOpen, 
@@ -60,27 +62,15 @@ const ScriptEditDialog = ({
     return stepType;
   };
 
-  // 通过我们的API代理调用DeepSeek模型
-  const generateWithDeepSeekAPI = async (prompt) => {
+  // 使用 Tauri 命令调用 DeepSeek API
+  const generateWithTauriCommand = async (prompt) => {
     try {
-      const response = await fetch('/api/generate-script', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ prompt })
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok) {
-        return data.content;
-      } else {
-        throw new Error(data.error || '请求AI模型失败');
-      }
+      // 调用在 Rust 端定义的 generate_script 命令
+      const generatedContent = await invoke('generate_script', { prompt });
+      return generatedContent;
     } catch (error) {
-      console.error('API请求失败:', error);
-      throw error;
+      console.error('Tauri 命令调用失败:', error);
+      throw new Error(`AI 生成遇到问题: ${error}`);
     }
   };
   
@@ -102,8 +92,8 @@ const ScriptEditDialog = ({
         prompt = `这是一段婚礼"${stepName}"环节的司仪台词，请在保留原内容的基础上改写或完善，使其更加优美、流畅且符合婚礼场合：\n\n${editedScript}`;
       }
       
-      // 调用API生成内容
-      const generatedText = await generateWithDeepSeekAPI(prompt);
+      // 调用 Tauri 命令
+      const generatedText = await generateWithTauriCommand(prompt);
       setAiSuggestion(generatedText);
     } catch (error) {
       console.error('AI生成失败:', error);
@@ -281,7 +271,7 @@ const ScriptEditDialog = ({
               <li>在此处编辑完整的司仪台词内容</li>
               <li>可以添加提醒、注意事项或特殊指示</li>
               <li>点击"AI帮我写"按钮，使用DeepSeek模型获取智能建议</li>
-              <li>需要在服务器环境变量中配置DEEPSEEK_API_KEY</li>
+              <li>需要在Tauri应用的.env文件中配置DEEPSEEK_API_KEY</li>
               <li>按 Ctrl+Enter 快速保存</li>
             </ul>
           </div>
