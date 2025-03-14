@@ -1,5 +1,5 @@
 /**
- * 音乐存储服务 - 添加音频裁剪功能
+ * 音乐存储服务 - 修复预设音乐裁剪设置在刷新后丢失的问题
  */
 
 // IndexedDB数据库名称和版本
@@ -193,8 +193,8 @@ export const deleteMusicFromDB = async (musicId) => {
   }
 };
 
-// 保存音频裁剪设置
-export const saveMusicTrimSettings = async (musicId, trimSettings) => {
+// 保存音频裁剪设置（修复版 - 支持预设音乐）
+export const saveMusicTrimSettings = async (musicId, trimSettings, isPreset = false) => {
   if (!trimSettings || typeof trimSettings !== 'object') {
     throw new Error('裁剪设置格式不正确');
   }
@@ -205,11 +205,15 @@ export const saveMusicTrimSettings = async (musicId, trimSettings) => {
       const transaction = db.transaction([TRIM_STORE], 'readwrite');
       const trimStore = transaction.objectStore(TRIM_STORE);
       
+      // 为预设音乐添加前缀，避免与上传音乐ID冲突
+      const storageId = isPreset ? `preset:${musicId}` : musicId;
+      
       // 保存设置
       const trimRecord = {
-        musicId,
+        musicId: storageId,
         start: trimSettings.start || 0,
         end: trimSettings.end || 0,
+        isPreset: isPreset,
         dateModified: new Date()
       };
       
@@ -229,8 +233,8 @@ export const saveMusicTrimSettings = async (musicId, trimSettings) => {
   }
 };
 
-// 获取音频裁剪设置
-export const getMusicTrimSettings = async (musicId) => {
+// 获取音频裁剪设置（修复版 - 支持预设音乐）
+export const getMusicTrimSettings = async (musicId, isPreset = false) => {
   try {
     const db = await initMusicDB();
     return new Promise((resolve, reject) => {
@@ -240,9 +244,12 @@ export const getMusicTrimSettings = async (musicId) => {
         return;
       }
       
+      // 为预设音乐添加前缀，与保存时保持一致
+      const storageId = isPreset ? `preset:${musicId}` : musicId;
+      
       const transaction = db.transaction([TRIM_STORE], 'readonly');
       const trimStore = transaction.objectStore(TRIM_STORE);
-      const request = trimStore.get(musicId);
+      const request = trimStore.get(storageId);
       
       request.onsuccess = (event) => {
         const trimRecord = event.target.result;

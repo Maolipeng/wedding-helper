@@ -77,7 +77,7 @@ const MusicPlayer = ({
       audioRef.current = new Audio();
       audioRef.current.volume = volume;
     }
-
+  
     // 清理之前的音频URL
     if (audioUrl && !isPreset) {
       URL.revokeObjectURL(audioUrl);
@@ -97,11 +97,22 @@ const MusicPlayer = ({
         if (isPreset) {
           // 预设音乐直接使用路径
           url = musicSource;
+          
+          // 获取预设音乐的裁剪设置 - 修改这里，添加isPreset参数
+          const savedTrimSettings = await getMusicTrimSettings(musicSource, true);
+          if (savedTrimSettings && 
+              (savedTrimSettings.start > 0 || savedTrimSettings.end > 0)) {
+            setTrimSettings(savedTrimSettings);
+            setIsTrimmed(true);
+          } else {
+            setTrimSettings({ start: 0, end: 0 });
+            setIsTrimmed(false);
+          }
         } else {
           // 从IndexedDB获取音乐文件
           url = await getMusicURL(musicSource);
           
-          // 获取裁剪设置
+          // 获取裁剪设置 - 上传音乐不需要isPreset参数
           const savedTrimSettings = await getMusicTrimSettings(musicSource);
           if (savedTrimSettings && 
               (savedTrimSettings.start > 0 || savedTrimSettings.end > 0)) {
@@ -426,52 +437,32 @@ const MusicPlayer = ({
   };
   
   // 保存裁剪设置
-  const handleSaveTrimSettings = async (newTrimSettings, playImmediately = false) => {
-    // 非预设音乐才能保存裁剪设置
-    if (!isPreset && musicSource) {
-      try {
-        // 保存裁剪设置到IndexedDB
-        await saveMusicTrimSettings(musicSource, newTrimSettings);
-        
-        // 更新本地状态
-        setTrimSettings(newTrimSettings);
-        setIsTrimmed(true);
-        
-        // 将音频定位到裁剪开始位置
-        if (audioRef.current) {
-          audioRef.current.currentTime = newTrimSettings.start;
-        }
-        
-        // 关闭裁剪工具
-        setShowTrimmer(false);
-        
-        // 如果请求立即播放，则开始播放
-        if (playImmediately) {
-          setTimeout(() => playAudio(), 100);
-        }
-      } catch (error) {
-        console.error('保存裁剪设置失败:', error);
-        alert('保存裁剪设置失败，请重试');
-      }
-    } else {
-      // 预设音乐只在当前会话中应用裁剪效果
-      setTrimSettings(newTrimSettings);
-      setIsTrimmed(true);
-      
-      // 将音频定位到裁剪开始位置
-      if (audioRef.current) {
-        audioRef.current.currentTime = newTrimSettings.start;
-      }
-      
-      // 关闭裁剪工具
-      setShowTrimmer(false);
-      
-      // 如果请求立即播放，则开始播放
-      if (playImmediately) {
-        setTimeout(() => playAudio(), 100);
-      }
+const handleSaveTrimSettings = async (newTrimSettings, playImmediately = false) => {
+  try {
+    // 修改：所有音乐都保存到IndexedDB，但区分预设和上传音乐
+    await saveMusicTrimSettings(musicSource, newTrimSettings, isPreset);
+    
+    // 更新本地状态
+    setTrimSettings(newTrimSettings);
+    setIsTrimmed(true);
+    
+    // 将音频定位到裁剪开始位置
+    if (audioRef.current) {
+      audioRef.current.currentTime = newTrimSettings.start;
     }
-  };
+    
+    // 关闭裁剪工具
+    setShowTrimmer(false);
+    
+    // 如果请求立即播放，则开始播放
+    if (playImmediately) {
+      setTimeout(() => playAudio(), 100);
+    }
+  } catch (error) {
+    console.error('保存裁剪设置失败:', error);
+    alert('保存裁剪设置失败，请重试');
+  }
+};
 
   // 计算进度条显示
   const calculateProgressPercentage = () => {
