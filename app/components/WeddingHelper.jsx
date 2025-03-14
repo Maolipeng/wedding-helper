@@ -1,16 +1,16 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { 
+import {
   SkipForward, MessageSquare, Music, Folder, Upload, Plus, Trash2, MoveUp, MoveDown,
   Calendar, Clock, HeartHandshake, Heart, ChevronRight, CheckCircle2, Settings, Edit, Maximize2, Cog
 } from 'lucide-react';
 import { defaultProgram } from '../lib/defaultProgram';
-import { 
-  initMusicDB, 
-  saveMusicToDB, 
+import {
+  initMusicDB,
+  saveMusicToDB,
   getAllMusicInfo,
-  deleteMusicFromDB 
+  deleteMusicFromDB
 } from '../lib/musicStorage';
 import { loadPresetMusic } from '../lib/presetMusicStorage';
 import MusicPlayer from './MusicPlayer';
@@ -36,11 +36,11 @@ const WeddingHelper = () => {
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [isCustomizing, setIsCustomizing] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  
+
   // 司仪台词编辑相关状态
   const [scriptDialogOpen, setScriptDialogOpen] = useState(false);
   const [currentEditingStep, setCurrentEditingStep] = useState(null);
-  
+
   // 设置相关状态
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
@@ -58,12 +58,12 @@ const WeddingHelper = () => {
       try {
         const savedProgram = localStorage.getItem('weddingProgram');
         const savedSettings = localStorage.getItem('weddingSettings');
-        
-        const result = { 
+
+        const result = {
           program: savedProgram ? JSON.parse(savedProgram) : defaultProgram,
           settings: savedSettings ? JSON.parse(savedSettings) : DEFAULT_SETTINGS
         };
-        
+
         return result;
       } catch (e) {
         console.error('无法从本地存储加载数据', e);
@@ -85,7 +85,7 @@ const WeddingHelper = () => {
     const { program, settings } = loadFromLocalStorage();
     setCustomProgram(program);
     setSettings(settings);
-    
+
     // 加载预设音乐库
     const loadPresets = async () => {
       try {
@@ -106,7 +106,7 @@ const WeddingHelper = () => {
         console.error('加载上传音乐失败:', error);
       }
     };
-    
+
     Promise.all([loadPresets(), loadUploadedMusic()]).then(() => {
       setInitialized(true);
     });
@@ -115,7 +115,7 @@ const WeddingHelper = () => {
   // 保存到本地存储
   useEffect(() => {
     if (!initialized) return;
-    
+
     try {
       localStorage.setItem('weddingProgram', JSON.stringify(customProgram));
     } catch (e) {
@@ -126,7 +126,7 @@ const WeddingHelper = () => {
   // 保存设置到本地存储
   useEffect(() => {
     if (!initialized) return;
-    
+
     try {
       localStorage.setItem('weddingSettings', JSON.stringify(settings));
     } catch (e) {
@@ -174,7 +174,7 @@ const WeddingHelper = () => {
     // 生成新的环节ID
     const maxId = Math.max(0, ...customProgram.map(step => step.id));
     const newId = maxId + 1;
-    
+
     const newStep = {
       id: newId,
       name: '新环节',
@@ -185,7 +185,7 @@ const WeddingHelper = () => {
       isPreset: false,
       duration: 5
     };
-    
+
     // 添加到现有程序末尾
     setCustomProgram([...customProgram, newStep]);
   };
@@ -200,7 +200,7 @@ const WeddingHelper = () => {
     const updatedProgram = [...customProgram];
     updatedProgram.splice(index, 1);
     setCustomProgram(updatedProgram);
-    
+
     // 如果删除的是当前显示的环节，调整currentStep
     if (currentStep >= updatedProgram.length) {
       setCurrentStep(updatedProgram.length - 1);
@@ -210,14 +210,14 @@ const WeddingHelper = () => {
   // 上移环节
   const moveStepUp = (index) => {
     if (index === 0) return; // 已经是第一个
-    
+
     const updatedProgram = [...customProgram];
     const temp = updatedProgram[index];
     updatedProgram[index] = updatedProgram[index - 1];
     updatedProgram[index - 1] = temp;
-    
+
     setCustomProgram(updatedProgram);
-    
+
     // 如果移动的是当前显示的环节，调整currentStep
     if (currentStep === index) {
       setCurrentStep(index - 1);
@@ -229,14 +229,14 @@ const WeddingHelper = () => {
   // 下移环节
   const moveStepDown = (index) => {
     if (index === customProgram.length - 1) return; // 已经是最后一个
-    
+
     const updatedProgram = [...customProgram];
     const temp = updatedProgram[index];
     updatedProgram[index] = updatedProgram[index + 1];
     updatedProgram[index + 1] = temp;
-    
+
     setCustomProgram(updatedProgram);
-    
+
     // 如果移动的是当前显示的环节，调整currentStep
     if (currentStep === index) {
       setCurrentStep(index + 1);
@@ -265,11 +265,11 @@ const WeddingHelper = () => {
   // 上传音乐文件
   const handleMusicUpload = async (e) => {
     const files = Array.from(e.target.files);
-    
+
     if (files.length === 0) return;
-    
+
     const newMusicFiles = [];
-    
+
     // 保存每个音乐文件到 IndexedDB
     for (const file of files) {
       try {
@@ -284,7 +284,7 @@ const WeddingHelper = () => {
         console.error(`保存音乐文件 ${file.name} 失败:`, error);
       }
     }
-    
+
     setUploadedMusic([...uploadedMusic, ...newMusicFiles]);
   };
 
@@ -293,7 +293,7 @@ const WeddingHelper = () => {
     try {
       await deleteMusicFromDB(musicId);
       setUploadedMusic(uploadedMusic.filter(music => music.id !== musicId));
-      
+
       // 同时更新所有使用该音乐的环节
       const updatedProgram = customProgram.map(step => {
         if (step.musicSource === musicId && !step.isPreset) {
@@ -307,7 +307,7 @@ const WeddingHelper = () => {
         }
         return step;
       });
-      
+
       setCustomProgram(updatedProgram);
     } catch (error) {
       console.error('删除音乐失败:', error);
@@ -335,12 +335,12 @@ const WeddingHelper = () => {
   // 更新预设音乐库
   const handlePresetMusicUpdate = (updatedList) => {
     setPresetMusicLibrary(updatedList);
-    
+
     // 检查是否有环节使用了被删除的预设音乐，并更新它们
     const deletedPaths = presetMusicLibrary
       .filter(oldMusic => !updatedList.some(newMusic => newMusic.id === oldMusic.id))
       .map(music => music.path);
-    
+
     if (deletedPaths.length > 0) {
       const updatedProgram = customProgram.map(step => {
         if (step.isPreset && deletedPaths.includes(step.music)) {
@@ -354,7 +354,7 @@ const WeddingHelper = () => {
         }
         return step;
       });
-      
+
       setCustomProgram(updatedProgram);
     }
   };
@@ -388,8 +388,8 @@ const WeddingHelper = () => {
         <div className="w-full max-w-6xl mx-auto overflow-auto">
           <div className="flex items-center mb-8">
             <div className="mr-3">
-              <button 
-                onClick={handleCustomize} 
+              <button
+                onClick={handleCustomize}
                 className="bg-white rounded-full p-2 shadow-md text-gray-600 hover:text-pink-500"
                 title="返回"
               >
@@ -398,43 +398,43 @@ const WeddingHelper = () => {
             </div>
             <h2 className="text-3xl font-bold gradient-text">自定义婚礼流程</h2>
           </div>
-          
+
           <div className="mb-8 wedding-card card-shadow p-6">
             <h3 className="font-bold text-xl mb-4 flex items-center">
               <Music className="mr-2 text-pink-500" />
               音乐库
             </h3>
-            
+
             <div className="flex border-b border-gray-200 mb-6">
-              <button 
+              <button
                 onClick={() => setActiveTab('preset')}
-                className={`px-6 py-3 font-medium ${activeTab === 'preset' 
-                  ? 'border-b-2 border-pink-500 text-pink-500' 
+                className={`px-6 py-3 font-medium ${activeTab === 'preset'
+                  ? 'border-b-2 border-pink-500 text-pink-500'
                   : 'text-gray-500 hover:text-gray-700'}`}
               >
                 <Folder className="inline-block mr-2" size={18} />
                 预设音乐
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('uploaded')}
-                className={`px-6 py-3 font-medium ${activeTab === 'uploaded' 
-                  ? 'border-b-2 border-pink-500 text-pink-500' 
+                className={`px-6 py-3 font-medium ${activeTab === 'uploaded'
+                  ? 'border-b-2 border-pink-500 text-pink-500'
                   : 'text-gray-500 hover:text-gray-700'}`}
               >
                 <Upload className="inline-block mr-2" size={18} />
                 上传音乐
               </button>
-              <button 
+              <button
                 onClick={() => setActiveTab('manage')}
-                className={`px-6 py-3 font-medium ${activeTab === 'manage' 
-                  ? 'border-b-2 border-pink-500 text-pink-500' 
+                className={`px-6 py-3 font-medium ${activeTab === 'manage'
+                  ? 'border-b-2 border-pink-500 text-pink-500'
                   : 'text-gray-500 hover:text-gray-700'}`}
               >
                 <Settings className="inline-block mr-2" size={18} />
                 管理预设
               </button>
             </div>
-            
+
             {activeTab === 'uploaded' && (
               <div>
                 <div className="mb-6">
@@ -443,17 +443,17 @@ const WeddingHelper = () => {
                       <Upload className="mr-2" size={18} />
                       上传本地音乐文件
                     </span>
-                    <input 
-                      type="file" 
-                      accept="audio/*" 
-                      onChange={handleMusicUpload} 
-                      className="hidden" 
-                      multiple 
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      onChange={handleMusicUpload}
+                      className="hidden"
+                      multiple
                     />
                   </label>
                   <p className="text-sm text-gray-500">支持MP3, WAV等音频格式</p>
                 </div>
-                
+
                 {uploadedMusic.length > 0 ? (
                   <div className="mt-2">
                     <h4 className="font-medium mb-3 text-gray-700">已上传的音乐：</h4>
@@ -466,7 +466,7 @@ const WeddingHelper = () => {
                             </div>
                             <span className="text-sm font-medium truncate">{music.name}</span>
                           </div>
-                          <button 
+                          <button
                             onClick={() => handleDeleteMusic(music.id)}
                             className="ml-2 text-gray-400 hover:text-red-500 flex-shrink-0"
                           >
@@ -485,24 +485,22 @@ const WeddingHelper = () => {
                 )}
               </div>
             )}
-            
+
             {activeTab === 'preset' && (
               <div>
                 <p className="text-sm text-gray-600 mb-4">
                   预设音乐可以在"管理预设"标签中添加或修改
                 </p>
-                
+
                 {presetMusicLibrary.length > 0 ? (
                   <div className="mt-2">
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                       {presetMusicLibrary.map((music, idx) => (
                         <div key={music.id || idx} className="bg-white border border-gray-100 rounded-lg p-3 flex items-center shadow-sm hover:shadow-md transition-shadow">
-                          <div className={`rounded-full p-2 mr-3 ${
-                            music.category ? 'bg-blue-100' : 'bg-gray-100'
-                          }`}>
-                            <Music className={`${
-                              music.category ? 'text-blue-500' : 'text-gray-500'
-                            }`} size={16} />
+                          <div className={`rounded-full p-2 mr-3 ${music.category ? 'bg-blue-100' : 'bg-gray-100'
+                            }`}>
+                            <Music className={`${music.category ? 'text-blue-500' : 'text-gray-500'
+                              }`} size={16} />
                           </div>
                           <div className="overflow-hidden">
                             <div className="font-medium truncate">{music.name}</div>
@@ -526,15 +524,15 @@ const WeddingHelper = () => {
                 )}
               </div>
             )}
-            
+
             {activeTab === 'manage' && (
-              <PresetMusicEditor 
-                presetList={presetMusicLibrary} 
-                onUpdate={handlePresetMusicUpdate} 
+              <PresetMusicEditor
+                presetList={presetMusicLibrary}
+                onUpdate={handlePresetMusicUpdate}
               />
             )}
           </div>
-          
+
           <div className="wedding-card card-shadow p-6 mb-8">
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-bold text-xl flex items-center">
@@ -549,7 +547,7 @@ const WeddingHelper = () => {
                   <Cog size={18} className="mr-1" />
                   设置
                 </button>
-                <button 
+                <button
                   onClick={addNewStep}
                   className="flex items-center bg-blue-500 hover:bg-blue-600 text-white py-2 px-4 rounded-full shadow-md transition-all duration-200"
                 >
@@ -558,7 +556,7 @@ const WeddingHelper = () => {
                 </button>
               </div>
             </div>
-            
+
             <div className="overflow-x-auto">
               <table className="w-full bg-white rounded-lg overflow-hidden">
                 <thead>
@@ -575,27 +573,27 @@ const WeddingHelper = () => {
                     <tr key={step.id} className={`border-b border-gray-100 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                       <td className="p-3 whitespace-nowrap">
                         <div className="flex space-x-2">
-                          <button 
+                          <button
                             onClick={() => moveStepUp(index)}
                             disabled={index === 0}
-                            className={`p-1.5 rounded-full ${index === 0 
-                              ? 'bg-gray-100 text-gray-300 cursor-not-allowed' 
+                            className={`p-1.5 rounded-full ${index === 0
+                              ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
                               : 'bg-blue-50 text-blue-500 hover:bg-blue-100'}`}
                             title="上移"
                           >
                             <MoveUp size={16} />
                           </button>
-                          <button 
+                          <button
                             onClick={() => moveStepDown(index)}
                             disabled={index === customProgram.length - 1}
-                            className={`p-1.5 rounded-full ${index === customProgram.length - 1 
-                              ? 'bg-gray-100 text-gray-300 cursor-not-allowed' 
+                            className={`p-1.5 rounded-full ${index === customProgram.length - 1
+                              ? 'bg-gray-100 text-gray-300 cursor-not-allowed'
                               : 'bg-blue-50 text-blue-500 hover:bg-blue-100'}`}
                             title="下移"
                           >
                             <MoveDown size={16} />
                           </button>
-                          <button 
+                          <button
                             onClick={() => deleteStep(index)}
                             className="p-1.5 rounded-full bg-red-50 text-red-500 hover:bg-red-100"
                             title="删除"
@@ -634,16 +632,16 @@ const WeddingHelper = () => {
                             // 解析选项值：source:index 格式
                             const [source, idxStr] = e.target.value.split(':');
                             const idx = idxStr;
-                            
+
                             let selectedMusic;
                             if (source === 'preset') {
                               selectedMusic = presetMusicLibrary[idx];
                               if (selectedMusic) {
                                 selectMusicForStep(
-                                  index, 
-                                  idx, 
-                                  selectedMusic.name, 
-                                  selectedMusic.path, 
+                                  index,
+                                  idx,
+                                  selectedMusic.name,
+                                  selectedMusic.path,
                                   true
                                 );
                               }
@@ -651,10 +649,10 @@ const WeddingHelper = () => {
                               selectedMusic = uploadedMusic.find(m => m.id === idx);
                               if (selectedMusic) {
                                 selectMusicForStep(
-                                  index, 
-                                  selectedMusic.id, 
-                                  selectedMusic.name, 
-                                  '', 
+                                  index,
+                                  selectedMusic.id,
+                                  selectedMusic.name,
+                                  '',
                                   false
                                 );
                               }
@@ -711,7 +709,7 @@ const WeddingHelper = () => {
               </table>
             </div>
           </div>
-          
+
           <div className="flex justify-end mb-8">
             <button
               onClick={handleCustomize}
@@ -746,7 +744,7 @@ const WeddingHelper = () => {
           {/* 进度条 */}
           <div className="mb-8">
             <div className="bg-gray-100 h-2 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-pink-500 to-blue-500 transition-all duration-500"
                 style={{ width: `${progress}%` }}
               ></div>
@@ -766,11 +764,11 @@ const WeddingHelper = () => {
                 {currentStep + 1}. {customProgram[currentStep]?.name}
               </h2>
             </div>
-            
+
             <div className="mb-6">
-              <TimerControl 
-                initialSeconds={customProgram[currentStep]?.duration * 60 || 0} 
-                onTimerEnd={() => {}}
+              <TimerControl
+                initialSeconds={customProgram[currentStep]?.duration * 60 || 0}
+                onTimerEnd={() => { }}
                 autoStart={settings.autoStartTimer}
                 resetKey={resetKey}
               />
@@ -799,21 +797,24 @@ const WeddingHelper = () => {
               </div>
             </div>
 
+            // 以下是WeddingHelper.jsx中音乐组件部分的修改
+
             <div className="bg-blue-50 rounded-xl p-5 mb-6 border border-blue-100">
-              <div className="flex justify-between items-center mb-2">
-                <div className="flex items-center">
-                  <Music className="text-blue-500 mr-3" />
-                  <h3 className="font-semibold text-gray-800">
-                    音乐: <span className={customProgram[currentStep]?.music ? "" : "text-gray-400"}>
-                      {customProgram[currentStep]?.musicName || '无音乐'}
-                    </span>
-                  </h3>
-                </div>
-                {(customProgram[currentStep]?.music || customProgram[currentStep]?.musicSource) && (
-                  <MusicPlayer 
+              <div className="flex items-center mb-3">
+                <Music className="text-blue-500 mr-3" />
+                <h3 className="font-semibold text-gray-800">
+                  音乐: <span className={customProgram[currentStep]?.music ? "" : "text-gray-400"}>
+                    {customProgram[currentStep]?.musicName || '无音乐'}
+                  </span>
+                </h3>
+              </div>
+
+              {(customProgram[currentStep]?.music || customProgram[currentStep]?.musicSource) ? (
+                <div className="ml-8 mr-2">
+                  <MusicPlayer
                     musicSource={
-                      customProgram[currentStep]?.isPreset 
-                        ? customProgram[currentStep]?.music 
+                      customProgram[currentStep]?.isPreset
+                        ? customProgram[currentStep]?.music
                         : customProgram[currentStep]?.musicSource
                     }
                     isPreset={customProgram[currentStep]?.isPreset}
@@ -821,28 +822,28 @@ const WeddingHelper = () => {
                     autoPlay={settings.autoPlayMusic}
                     resetKey={resetKey}
                   />
-                )}
-              </div>
-              <div className="text-sm text-gray-500 ml-8">
-                {(customProgram[currentStep]?.music || customProgram[currentStep]?.musicSource)
-                  ? settings.autoPlayMusic ? '切换环节时自动播放音乐' : '点击播放按钮控制音乐'
-                  : '此环节未设置音乐，请在自定义流程中添加'
-                }
-              </div>
+                  <div className="text-sm text-gray-500 mt-2">
+                    {settings.autoPlayMusic ? '切换环节时自动播放音乐' : '点击播放按钮控制音乐'}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 ml-8">
+                  此环节未设置音乐，请在自定义流程中添加
+                </div>
+              )}
             </div>
 
             <button
               onClick={nextStep}
               disabled={currentStep >= customProgram.length - 1}
-              className={`flex items-center justify-center w-full py-4 rounded-xl text-white font-bold text-lg transition-all duration-300 ${
-                currentStep >= customProgram.length - 1
+              className={`flex items-center justify-center w-full py-4 rounded-xl text-white font-bold text-lg transition-all duration-300 ${currentStep >= customProgram.length - 1
                   ? 'bg-gray-300 cursor-not-allowed'
                   : 'bg-gradient-to-r from-pink-500 to-blue-500 hover:shadow-lg hover:translate-y-px'
-              }`}
+                }`}
             >
               <SkipForward className="mr-2" />
-              下一环节: {currentStep < customProgram.length - 1 
-                ? customProgram[currentStep + 1]?.name 
+              下一环节: {currentStep < customProgram.length - 1
+                ? customProgram[currentStep + 1]?.name
                 : '婚礼已结束'}
             </button>
           </div>
@@ -854,11 +855,10 @@ const WeddingHelper = () => {
                 <div
                   key={step.id}
                   onClick={() => switchToStep(index)}
-                  className={`flex-shrink-0 mx-2 p-3 rounded-lg cursor-pointer transition-all duration-200 ${
-                    currentStep === index
+                  className={`flex-shrink-0 mx-2 p-3 rounded-lg cursor-pointer transition-all duration-200 ${currentStep === index
                       ? 'bg-pink-100 border-2 border-pink-500 shadow-md transform -translate-y-1'
                       : 'bg-white border border-gray-200 hover:border-blue-200 hover:bg-blue-50'
-                  }`}
+                    }`}
                 >
                   <div className="text-sm font-medium">{index + 1}. {step.name}</div>
                   <div className="text-xs text-gray-500 mt-1">{step.duration}分钟</div>
@@ -872,7 +872,7 @@ const WeddingHelper = () => {
               ))}
             </div>
           </div>
-          
+
           <div className="text-center text-gray-500 text-xs mb-6">
             <p>由❤️毛立鹏精心制作</p>
             <p className="mt-1">祝您的婚礼圆满成功</p>
@@ -890,7 +890,7 @@ const WeddingHelper = () => {
       />
 
       {/* 设置对话框 */}
-      <SettingsDialog 
+      <SettingsDialog
         isOpen={settingsDialogOpen}
         onClose={() => setSettingsDialogOpen(false)}
         settings={settings}
@@ -903,7 +903,7 @@ const WeddingHelper = () => {
           {/* 这里可以添加庆祝动画元素 */}
           <div className="absolute top-20 left-1/2 transform -translate-x-1/2 text-center">
             <div className="text-3xl font-bold text-pink-500 animate-bounce">
-              祝贺! 婚礼圆满完成! 
+              祝贺! 婚礼圆满完成!
             </div>
           </div>
         </div>

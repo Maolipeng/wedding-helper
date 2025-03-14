@@ -16,6 +16,8 @@ const MusicPlayer = ({
   const [isMuted, setIsMuted] = useState(false);
   const [audioUrl, setAudioUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const audioRef = useRef(null);
 
   // 初始化音频对象和加载音频源
@@ -79,20 +81,32 @@ const MusicPlayer = ({
     };
   }, [musicSource, isPreset, autoPlay, resetKey]);
 
-  // 监听音频结束
+  // 监听音频结束和进度
   useEffect(() => {
     const handleEnded = () => {
       setIsPlaying(false);
       if (onPlayStateChange) onPlayStateChange(false);
     };
     
+    const handleTimeUpdate = () => {
+      setCurrentTime(audioRef.current.currentTime);
+    };
+    
+    const handleLoadedMetadata = () => {
+      setDuration(audioRef.current.duration);
+    };
+    
     if (audioRef.current) {
       audioRef.current.addEventListener('ended', handleEnded);
+      audioRef.current.addEventListener('timeupdate', handleTimeUpdate);
+      audioRef.current.addEventListener('loadedmetadata', handleLoadedMetadata);
     }
     
     return () => {
       if (audioRef.current) {
         audioRef.current.removeEventListener('ended', handleEnded);
+        audioRef.current.removeEventListener('timeupdate', handleTimeUpdate);
+        audioRef.current.removeEventListener('loadedmetadata', handleLoadedMetadata);
       }
     };
   }, [onPlayStateChange]);
@@ -126,6 +140,20 @@ const MusicPlayer = ({
     setIsPlaying(false);
     if (onPlayStateChange) onPlayStateChange(false);
   };
+  
+  // 跳转到指定时间点
+  const seekAudio = (e) => {
+    if (!audioRef.current || !audioUrl || duration === 0) return;
+    
+    // 计算点击位置对应的时间
+    const progressBar = e.currentTarget;
+    const clickPosition = (e.clientX - progressBar.getBoundingClientRect().left) / progressBar.offsetWidth;
+    const newTime = clickPosition * duration;
+    
+    // 设置新的播放位置
+    audioRef.current.currentTime = newTime;
+    setCurrentTime(newTime);
+  };
 
   // 播放/暂停切换
   const togglePlay = () => {
@@ -152,6 +180,15 @@ const MusicPlayer = ({
       setIsMuted(false);
     }
   };
+  
+  // 格式化时间（分:秒）
+  const formatTime = (timeInSeconds) => {
+    if (isNaN(timeInSeconds)) return "0:00";
+    
+    const minutes = Math.floor(timeInSeconds / 60);
+    const seconds = Math.floor(timeInSeconds % 60);
+    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+  };
 
   if (isLoading) {
     return (
@@ -165,46 +202,72 @@ const MusicPlayer = ({
   }
 
   return (
-    <div className="flex items-center space-x-3">
-      <button
-        onClick={togglePlay}
-        disabled={!audioUrl}
-        className={`rounded-full p-2 transition-all ${
-          isPlaying 
-            ? 'bg-pink-100 text-pink-500 hover:bg-pink-200' 
-            : 'bg-blue-100 text-blue-500 hover:bg-blue-200'
-        } ${!audioUrl ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
-      >
-        {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-      </button>
+    <div className="flex flex-col space-y-2 w-full max-w-md">
+      {/* 播放进度条 */}
+      {audioUrl && !isLoading && (
+        <div className="w-full space-y-1">
+          <div 
+            className="relative w-full h-2 bg-gray-200 rounded-full cursor-pointer group"
+            onClick={seekAudio}
+          >
+            <div 
+              className="absolute left-0 top-0 h-full bg-gradient-to-r from-blue-500 to-pink-500 rounded-full pointer-events-none"
+              style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+            ></div>
+            <div 
+              className="absolute top-1/2 transform -translate-y-1/2 w-3 h-3 bg-white border-2 border-pink-500 rounded-full shadow-sm pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ left: `calc(${duration > 0 ? (currentTime / duration) * 100 : 0}% - 6px)` }}
+            ></div>
+          </div>
+          <div className="flex justify-between text-xs text-gray-500">
+            <span>{formatTime(currentTime)}</span>
+            <span>{formatTime(duration)}</span>
+          </div>
+        </div>
+      )}
       
-      <button
-        onClick={toggleMute}
-        disabled={!audioUrl}
-        className={`rounded-full p-2 transition-all ${
-          isMuted 
-            ? 'bg-gray-100 text-gray-500' 
-            : 'bg-gray-100 text-gray-700'
-        } ${!audioUrl ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'}`}
-      >
-        {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-      </button>
-      
-      <div className="relative w-24 group">
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={volume}
-          onChange={handleVolumeChange}
-          className={`w-full ${!audioUrl ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+      {/* 控制按钮 */}
+      <div className="flex items-center space-x-3">
+        <button
+          onClick={togglePlay}
           disabled={!audioUrl}
-        />
-        <div 
-          className="absolute left-0 top-1/2 h-1.5 bg-gradient-to-r from-blue-500 to-pink-500 rounded-full transform -translate-y-1/2 pointer-events-none"
-          style={{ width: `${volume * 100}%` }}
-        ></div>
+          className={`rounded-full p-2 transition-all ${
+            isPlaying 
+              ? 'bg-pink-100 text-pink-500 hover:bg-pink-200' 
+              : 'bg-blue-100 text-blue-500 hover:bg-blue-200'
+          } ${!audioUrl ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
+        >
+          {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+        </button>
+        
+        <button
+          onClick={toggleMute}
+          disabled={!audioUrl}
+          className={`rounded-full p-2 transition-all ${
+            isMuted 
+              ? 'bg-gray-100 text-gray-500' 
+              : 'bg-gray-100 text-gray-700'
+          } ${!audioUrl ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'}`}
+        >
+          {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+        </button>
+        
+        <div className="relative w-24 group">
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={volume}
+            onChange={handleVolumeChange}
+            className={`w-full ${!audioUrl ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+            disabled={!audioUrl}
+          />
+          <div 
+            className="absolute left-0 top-1/2 h-1.5 bg-gradient-to-r from-blue-500 to-pink-500 rounded-full transform -translate-y-1/2 pointer-events-none"
+            style={{ width: `${volume * 100}%` }}
+          ></div>
+        </div>
       </div>
     </div>
   );
