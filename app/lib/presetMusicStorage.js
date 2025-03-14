@@ -3,6 +3,46 @@
  * 允许用户自定义预设音乐，并保存到localStorage
  */
 
+// 默认预设音乐，用于首次使用时
+const defaultPresetMusic = [
+  {
+      "id": "preset1",
+      "name": "A Thousand Years",
+      "path": "/audio/A Thousand Years.mp3",
+      "category": "浪漫"
+  },
+  {
+      "id": "preset2",
+      "name": "Love Story",
+      "path": "/audio/Love Story.mp3",
+      "category": "浪漫"
+  },
+  {
+      "id": "preset3",
+      "name": "将故事写成我们",
+      "path": "/audio/林俊杰 - 将故事写成我们.mp3",
+      "category": "浪漫"
+  },
+  {
+      "id": "preset4",
+      "name": "交换余生",
+      "path": "/audio/林俊杰-交换余生.mp3",
+      "category": "温馨"
+  },
+  {
+      "id": "preset5",
+      "name": "给你们",
+      "path": "/audio/给你们.mp3",
+      "category": "浪漫"
+  },
+  {
+      "id": "preset6",
+      "name": "这世界那么多人",
+      "path": "/audio/这世界那么多人-莫文蔚.mp3",
+      "category": "温馨"
+  }
+]
+
 // 加载预设音乐列表(从本地存储或默认配置)
 export const loadPresetMusic = async () => {
     // 先检查本地存储中是否有自定义预设
@@ -17,7 +57,7 @@ export const loadPresetMusic = async () => {
       console.error('从本地存储加载预设音乐失败:', error);
     }
   
-    // 如果本地没有，则加载默认预设
+    // 尝试从 music-list.json 加载
     try {
       const response = await fetch('/audio/music-list.json');
       if (response.ok) {
@@ -27,14 +67,16 @@ export const loadPresetMusic = async () => {
           localStorage.setItem('weddingPresetMusic', JSON.stringify(data));
         }
         return data;
-      } else {
-        console.error('无法加载预设音乐列表');
-        return [];
       }
     } catch (error) {
-      console.error('加载预设音乐列表失败:', error);
-      return [];
+      console.error('加载预设音乐列表文件失败，使用内置默认列表:', error);
     }
+    
+    // 如果从文件加载失败，则使用内置的默认列表
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('weddingPresetMusic', JSON.stringify(defaultPresetMusic));
+    }
+    return defaultPresetMusic;
   };
   
   // 保存预设音乐到本地存储

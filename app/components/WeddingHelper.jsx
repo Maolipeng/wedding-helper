@@ -1,13 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Cog, Heart } from 'lucide-react';
+import {
+  Cog,
+  Heart,
+  Music  // 添加 Music 图标导入
+} from 'lucide-react';
 import { defaultProgram } from '../lib/defaultProgram';
-import { 
-  initMusicDB, 
-  saveMusicToDB, 
+import {
+  initMusicDB,
+  saveMusicToDB,
   getAllMusicInfo,
-  deleteMusicFromDB 
+  deleteMusicFromDB
 } from '../lib/musicStorage';
 import { loadPresetMusic } from '../lib/presetMusicStorage';
 
@@ -37,11 +41,11 @@ const WeddingHelper = () => {
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
   const [isCustomizing, setIsCustomizing] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
-  
+
   // 司仪台词编辑相关状态
   const [scriptDialogOpen, setScriptDialogOpen] = useState(false);
   const [currentEditingStep, setCurrentEditingStep] = useState(null);
-  
+
   // 设置相关状态
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false);
@@ -59,12 +63,12 @@ const WeddingHelper = () => {
       try {
         const savedProgram = localStorage.getItem('weddingProgram');
         const savedSettings = localStorage.getItem('weddingSettings');
-        
-        const result = { 
+
+        const result = {
           program: savedProgram ? JSON.parse(savedProgram) : defaultProgram,
           settings: savedSettings ? JSON.parse(savedSettings) : DEFAULT_SETTINGS
         };
-        
+
         return result;
       } catch (e) {
         console.error('无法从本地存储加载数据', e);
@@ -86,7 +90,7 @@ const WeddingHelper = () => {
     const { program, settings } = loadFromLocalStorage();
     setCustomProgram(program);
     setSettings(settings);
-    
+
     // 加载预设音乐库
     const loadPresets = async () => {
       try {
@@ -107,7 +111,7 @@ const WeddingHelper = () => {
         console.error('加载上传音乐失败:', error);
       }
     };
-    
+
     Promise.all([loadPresets(), loadUploadedMusic()]).then(() => {
       setInitialized(true);
     });
@@ -116,7 +120,7 @@ const WeddingHelper = () => {
   // 保存到本地存储
   useEffect(() => {
     if (!initialized) return;
-    
+
     try {
       localStorage.setItem('weddingProgram', JSON.stringify(customProgram));
     } catch (e) {
@@ -127,7 +131,7 @@ const WeddingHelper = () => {
   // 保存设置到本地存储
   useEffect(() => {
     if (!initialized) return;
-    
+
     try {
       localStorage.setItem('weddingSettings', JSON.stringify(settings));
     } catch (e) {
@@ -190,11 +194,18 @@ const WeddingHelper = () => {
   // 程序编辑器处理函数
   const handleProgramUpdate = (updatedProgram) => {
     setCustomProgram(updatedProgram);
-    
+
     // 如果当前显示的环节索引超出了程序长度，调整它
     if (currentStep >= updatedProgram.length) {
       setCurrentStep(Math.max(0, updatedProgram.length - 1));
     }
+  };
+  // 计算下一个环节的名称
+  const getNextStepName = () => {
+    if (currentStep < customProgram.length - 1) {
+      return customProgram[currentStep + 1]?.name;
+    }
+    return '';
   };
 
   // 音乐库更新处理函数
@@ -221,7 +232,7 @@ const WeddingHelper = () => {
         try {
           await deleteMusicFromDB(musicId);
           setUploadedMusic(uploadedMusic.filter(music => music.id !== musicId));
-          
+
           // 同时更新所有使用该音乐的环节
           const updatedProgram = customProgram.map(step => {
             if (step.musicSource === musicId && !step.isPreset) {
@@ -235,7 +246,7 @@ const WeddingHelper = () => {
             }
             return step;
           });
-          
+
           setCustomProgram(updatedProgram);
         } catch (error) {
           console.error('删除音乐失败:', error);
@@ -245,12 +256,12 @@ const WeddingHelper = () => {
     presetMusic: {
       update: (updatedList) => {
         setPresetMusicLibrary(updatedList);
-        
+
         // 检查是否有环节使用了被删除的预设音乐，并更新它们
         const deletedPaths = presetMusicLibrary
           .filter(oldMusic => !updatedList.some(newMusic => newMusic.id === oldMusic.id))
           .map(music => music.path);
-        
+
         if (deletedPaths.length > 0) {
           const updatedProgram = customProgram.map(step => {
             if (step.isPreset && deletedPaths.includes(step.music)) {
@@ -264,7 +275,7 @@ const WeddingHelper = () => {
             }
             return step;
           });
-          
+
           setCustomProgram(updatedProgram);
         }
       }
@@ -287,22 +298,22 @@ const WeddingHelper = () => {
   return (
     <div className="flex flex-col min-h-screen bg-white wedding-waves">
       {/* 移动端导航栏 */}
-      <MobileNav 
+      <MobileNav
         isCustomizing={isCustomizing}
         onToggleCustomize={handleCustomize}
         onOpenSettings={() => setSettingsDialogOpen(true)}
       />
-      
+
       {isCustomizing ? (
-         <ProgramEditor
-         program={customProgram}
-         uploadedMusic={uploadedMusic}
-         presetMusicLibrary={presetMusicLibrary}
-         onProgramUpdate={handleProgramUpdate}
-         onMusicUpdate={handleMusicLibraryUpdate}
-         onSettingsOpen={() => setSettingsDialogOpen(true)}
-         onCancel={handleCustomize}
-       />
+        <ProgramEditor
+          program={customProgram}
+          uploadedMusic={uploadedMusic}
+          presetMusicLibrary={presetMusicLibrary}
+          onProgramUpdate={handleProgramUpdate}
+          onMusicUpdate={handleMusicLibraryUpdate}
+          onSettingsOpen={() => setSettingsDialogOpen(true)}
+          onCancel={handleCustomize}
+        />
       ) : (
         <div className="w-full max-w-4xl mx-auto p-4 md:p-6">
           <div className="flex justify-between items-center mb-6 hidden md:flex">
@@ -325,17 +336,17 @@ const WeddingHelper = () => {
           </div>
 
           {/* 进度条 */}
-          <ProgramProgress 
-            currentStep={currentStep} 
-            totalSteps={customProgram.length} 
+          <ProgramProgress
+            currentStep={currentStep}
+            totalSteps={customProgram.length}
           />
           {/* 音乐播放状态指示器 - 新增 */}
-        {isMusicPlaying && (
-          <div className="flex items-center justify-center mb-4 text-sm text-gray-600 animate-pulse">
-            <Music size={16} className="mr-2 text-pink-500" />
-            <span>正在播放: {customProgram[currentStep]?.musicName || '音乐'}</span>
-          </div>
-        )}
+          {isMusicPlaying && (
+            <div className="flex items-center justify-center mb-4 text-sm text-gray-600 animate-pulse">
+              <Music size={16} className="mr-2 text-pink-500" />
+              <span>正在播放: {customProgram[currentStep]?.musicName || '音乐'}</span>
+            </div>
+          )}
 
           {/* 当前环节 */}
           <ProgramStep
@@ -347,6 +358,7 @@ const WeddingHelper = () => {
             onScriptEdit={handleOpenScriptDialog}
             isLastStep={currentStep >= customProgram.length - 1}
             onNextStep={nextStep}
+            nextStepName={getNextStepName()}
           />
 
           {/* 环节列表 */}
@@ -355,7 +367,7 @@ const WeddingHelper = () => {
             currentStep={currentStep}
             onStepSelect={switchToStep}
           />
-          
+
           <div className="text-center text-gray-500 text-xs mb-6">
             <p>由❤️毛立鹏精心制作</p>
             <p className="mt-1">祝您的婚礼圆满成功</p>
@@ -373,7 +385,7 @@ const WeddingHelper = () => {
       />
 
       {/* 设置对话框 */}
-      <SettingsDialog 
+      <SettingsDialog
         isOpen={settingsDialogOpen}
         onClose={() => setSettingsDialogOpen(false)}
         settings={settings}

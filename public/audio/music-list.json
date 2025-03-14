@@ -1,44 +1,38 @@
 [
     {
-        "name": "婚礼进行曲",
-        "filename": "wedding-march.mp3",
-        "path": "/audio/wedding-march.mp3",
-        "category": "仪式"
+        "id": "preset1",
+        "name": "A Thousand Years",
+        "path": "/audio/A Thousand Years.mp3",
+        "category": "浪漫"
     },
     {
-        "name": "浪漫背景音乐",
-        "filename": "romantic-bgm.mp3",
+        "id": "preset2",
+        "name": "Love Story",
         "path": "/audio/Love Story.mp3",
-        "category": "背景音乐"
+        "category": "浪漫"
     },
     {
-        "name": "新郎入场曲",
-        "filename": "groom-entrance.mp3",
-        "path": "/audio/groom-entrance.mp3",
-        "category": "入场"
+        "id": "preset3",
+        "name": "将故事写成我们",
+        "path": "/audio/林俊杰 - 将故事写成我们.mp3",
+        "category": "浪漫"
     },
     {
-        "name": "新娘入场曲",
-        "filename": "bride-entrance.mp3",
-        "path": "/audio/bride-entrance.mp3",
-        "category": "入场"
+        "id": "preset4",
+        "name": "交换余生",
+        "path": "/audio/林俊杰-交换余生.mp3",
+        "category": "温馨"
     },
     {
-        "name": "欢快背景音乐",
-        "filename": "cheerful-bgm.mp3",
-        "path": "/audio/Love Story.mp3",
-        "category": "背景音乐"
-    },
-    {
-        "name": "甜蜜背景音乐",
-        "filename": "sweet-bgm.mp3",
+        "id": "preset5",
+        "name": "给你们",
         "path": "/audio/给你们.mp3",
-        "category": "背景音乐"
+        "category": "浪漫"
     },
     {
-        "name": "欢送音乐",
-        "filename": "farewell-music.mp3",
-        "path": "/audio/farewell-music.mp3",
-        "category": "结束"
+        "id": "preset6",
+        "name": "这世界那么多人",
+        "path": "/audio/这世界那么多人-莫文蔚.mp3",
+        "category": "温馨"
     }
 ]
