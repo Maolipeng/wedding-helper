@@ -20,6 +20,7 @@ import ProgramEditor from './editor/ProgramEditor';
 import ScriptEditDialog from './ScriptEditDialog';
 import SettingsDialog from './SettingsDialog';
 import ConfettiEffect from './wedding/ConfettiEffect';
+import { useToast } from './ui/Toast';
 
 // 默认设置
 const DEFAULT_SETTINGS = {
@@ -48,6 +49,8 @@ const WeddingHelper = () => {
   const [resetKey, setResetKey] = useState(0); // 用于重置组件状态的键
   // 添加重置确认对话框状态
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+ // 获取 toast 函数
+  const { toast } = useToast();
   // 添加重置数据的函数
   const handleResetData = () => {
     // 打开确认对话框
@@ -66,13 +69,15 @@ const WeddingHelper = () => {
       setResetDialogOpen(false);
 
       // 显示成功消息
-      alert('数据已重置，页面将刷新以应用更改。');
+      toast.success('数据已重置，页面将刷新以应用更改。', 2000);
 
       // 刷新页面以重新加载所有默认设置
-      window.location.reload();
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
     } catch (error) {
       console.error('重置数据失败:', error);
-      alert('重置数据失败，请重试。');
+      toast.error('重置数据失败，请重试。');
       setResetDialogOpen(false);
     }
   };
@@ -418,6 +423,44 @@ const WeddingHelper = () => {
         settings={settings}
         onSave={handleSaveSettings}
       />
+      {/* 重置确认对话框 */}
+      {resetDialogOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden">
+            <div className="p-6">
+              <div className="flex items-start mb-4">
+                <div className="bg-red-100 p-2 rounded-full mr-3">
+                  <AlertTriangle className="text-red-500" size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">确认重置数据？</h3>
+                  <p className="text-gray-600">
+                    这将清除所有已保存的婚礼流程、设置和预设音乐。此操作无法撤销。
+                  </p>
+                </div>
+              </div>
+
+              <div className="border-t border-gray-200 mt-4 pt-4">
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => setResetDialogOpen(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={confirmReset}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center"
+                  >
+                    <RotateCcw size={16} className="mr-2" />
+                    确认重置
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 庆祝动画效果 */}
       {showConfetti && <ConfettiEffect />}

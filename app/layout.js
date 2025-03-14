@@ -1,4 +1,5 @@
 import "./globals.css";
+import { ToastProvider } from "./components/ui/Toast";
 
 export default function RootLayout({ children }) {
   return (
@@ -9,7 +10,9 @@ export default function RootLayout({ children }) {
         <title>婚礼助手</title>
       </head>
       <body>
-        {children}
+        <ToastProvider>
+          {children}
+        </ToastProvider>
       </body>
     </html>
   );
