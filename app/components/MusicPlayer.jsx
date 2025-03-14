@@ -8,8 +8,8 @@ const MusicPlayer = ({
   musicSource, 
   isPreset = false, 
   onPlayStateChange,
-  autoPlay = false, // 新增: 自动播放选项
-  resetKey = 0 // 新增: 重置键，当它改变时重新加载音乐
+  autoPlay = false,
+  resetKey = 0
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(0.7);
@@ -18,7 +18,41 @@ const MusicPlayer = ({
   const [isLoading, setIsLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [showVolumeControl, setShowVolumeControl] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const audioRef = useRef(null);
+  const volumeControlRef = useRef(null);
+
+  // 检测是否为移动设备
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
+
+  // 点击外部关闭音量控制
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (volumeControlRef.current && !volumeControlRef.current.contains(event.target)) {
+        setShowVolumeControl(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
 
   // 初始化音频对象和加载音频源
   useEffect(() => {
@@ -147,7 +181,9 @@ const MusicPlayer = ({
     
     // 计算点击位置对应的时间
     const progressBar = e.currentTarget;
-    const clickPosition = (e.clientX - progressBar.getBoundingClientRect().left) / progressBar.offsetWidth;
+    const rect = progressBar.getBoundingClientRect();
+    const clientX = e.type.includes('touch') ? e.touches[0].clientX : e.clientX;
+    const clickPosition = (clientX - rect.left) / rect.width;
     const newTime = clickPosition * duration;
     
     // 设置新的播放位置
@@ -167,6 +203,15 @@ const MusicPlayer = ({
   // 静音切换
   const toggleMute = () => {
     setIsMuted(!isMuted);
+  };
+
+  // 音量按钮点击
+  const handleVolumeButtonClick = () => {
+    if (isMobile) {
+      setShowVolumeControl(!showVolumeControl);
+    } else {
+      toggleMute();
+    }
   };
 
   // 音量调整
@@ -207,16 +252,17 @@ const MusicPlayer = ({
       {audioUrl && !isLoading && (
         <div className="w-full space-y-1">
           <div 
-            className="relative w-full h-2 bg-gray-200 rounded-full cursor-pointer group"
+            className="relative w-full h-3 bg-gray-200 rounded-full cursor-pointer group touch-manipulation"
             onClick={seekAudio}
+            onTouchStart={seekAudio}
           >
             <div 
               className="absolute left-0 top-0 h-full bg-gradient-to-r from-blue-500 to-pink-500 rounded-full pointer-events-none"
               style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
             ></div>
             <div 
-              className="absolute top-1/2 transform -translate-y-1/2 w-3 h-3 bg-white border-2 border-pink-500 rounded-full shadow-sm pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
-              style={{ left: `calc(${duration > 0 ? (currentTime / duration) * 100 : 0}% - 6px)` }}
+              className="absolute top-1/2 transform -translate-y-1/2 w-4 h-4 bg-white border-2 border-pink-500 rounded-full shadow-sm pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ left: `calc(${duration > 0 ? (currentTime / duration) * 100 : 0}% - 8px)` }}
             ></div>
           </div>
           <div className="flex justify-between text-xs text-gray-500">
@@ -231,43 +277,63 @@ const MusicPlayer = ({
         <button
           onClick={togglePlay}
           disabled={!audioUrl}
-          className={`rounded-full p-2 transition-all ${
+          className={`rounded-full p-3 transition-all ${
             isPlaying 
               ? 'bg-pink-100 text-pink-500 hover:bg-pink-200' 
               : 'bg-blue-100 text-blue-500 hover:bg-blue-200'
           } ${!audioUrl ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'}`}
         >
-          {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+          {isPlaying ? <Pause size={isMobile ? 20 : 16} /> : <Play size={isMobile ? 20 : 16} />}
         </button>
         
-        <button
-          onClick={toggleMute}
-          disabled={!audioUrl}
-          className={`rounded-full p-2 transition-all ${
-            isMuted 
-              ? 'bg-gray-100 text-gray-500' 
-              : 'bg-gray-100 text-gray-700'
-          } ${!audioUrl ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'}`}
-        >
-          {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-        </button>
-        
-        <div className="relative w-24 group">
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={volume}
-            onChange={handleVolumeChange}
-            className={`w-full ${!audioUrl ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+        <div className="relative" ref={volumeControlRef}>
+          <button
+            onClick={handleVolumeButtonClick}
             disabled={!audioUrl}
-          />
-          <div 
-            className="absolute left-0 top-1/2 h-1.5 bg-gradient-to-r from-blue-500 to-pink-500 rounded-full transform -translate-y-1/2 pointer-events-none"
-            style={{ width: `${volume * 100}%` }}
-          ></div>
+            className={`rounded-full p-3 transition-all ${
+              isMuted 
+                ? 'bg-gray-100 text-gray-500' 
+                : 'bg-gray-100 text-gray-700'
+            } ${!audioUrl ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-200'}`}
+          >
+            {isMuted ? <VolumeX size={isMobile ? 20 : 16} /> : <Volume2 size={isMobile ? 20 : 16} />}
+          </button>
+          
+          {/* 移动端音量控制浮层 */}
+          {isMobile && showVolumeControl && (
+            <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 bg-white p-3 rounded-lg shadow-lg z-10 w-32">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                value={volume}
+                onChange={handleVolumeChange}
+                className="w-full"
+              />
+            </div>
+          )}
         </div>
+        
+        {/* 桌面端音量滑块 */}
+        {!isMobile && (
+          <div className="relative w-24 group">
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={volume}
+              onChange={handleVolumeChange}
+              className={`w-full ${!audioUrl ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+              disabled={!audioUrl}
+            />
+            <div 
+              className="absolute left-0 top-1/2 h-1.5 bg-gradient-to-r from-blue-500 to-pink-500 rounded-full transform -translate-y-1/2 pointer-events-none"
+              style={{ width: `${volume * 100}%` }}
+            ></div>
+          </div>
+        )}
       </div>
     </div>
   );

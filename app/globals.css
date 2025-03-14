@@ -144,3 +144,172 @@ button:active {
 .wedding-waves {
   background-image: url("data:image/svg+xml,%3Csvg width='100' height='20' viewBox='0 0 100 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M21.184 20c.357-.13.72-.264 1.088-.402l1.768-.661C33.64 15.347 39.647 14 50 14c10.271 0 15.362 1.222 24.629 4.928.955.383 1.869.74 2.75 1.072h6.225c-2.51-.73-5.139-1.691-8.233-2.928C65.888 13.278 60.562 12 50 12c-10.626 0-16.855 1.397-26.66 5.063l-1.767.662c-2.475.923-4.66 1.674-6.724 2.275h6.335zm0-20C13.258 2.892 8.077 4 0 4V2c5.744 0 9.951-.574 14.85-2h6.334zM77.38 0C85.239 2.966 90.502 4 100 4V2c-6.842 0-11.386-.542-16.396-2h-6.225zM0 14c8.44 0 13.718-1.21 22.272-4.402l1.768-.661C33.64 5.347 39.647 4 50 4c10.271 0 15.362 1.222 24.629 4.928C84.112 12.722 89.438 14 100 14v-2c-10.271 0-15.362-1.222-24.629-4.928C65.888 3.278 60.562 2 50 2 39.374 2 33.145 3.397 23.34 7.063l-1.767.662C13.223 10.84 8.163 12 0 12v2z' fill='%23f0f4f8' fill-opacity='0.8' fill-rule='evenodd'/%3E%3C/svg%3E");
 }
+
+/* 移动端适配样式 - 添加到 globals.css */
+
+/* 基础响应式调整 */
+@media (max-width: 768px) {
+  body {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 1.75rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+  }
+
+  .wedding-card {
+    padding: 1rem;
+  }
+}
+
+/* 改进触摸体验的样式 */
+@media (max-width: 768px) {
+
+  /* 增大按钮可点击区域 */
+  button {
+    min-height: 44px;
+    min-width: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* 避免意外触摸 */
+  button,
+  a,
+  [role="button"] {
+    touch-action: manipulation;
+  }
+
+  /* 调整输入框大小 */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+    /* 避免iOS缩放 */
+    padding: 0.75rem;
+  }
+
+  /* 调整进度条高度以便更容易操作 */
+  input[type="range"] {
+    height: 30px;
+  }
+
+  /* 优化滚动区域 */
+  .overflow-x-auto,
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* 使界面更适合手机操作 */
+@media (max-width: 768px) {
+  .card-shadow {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  }
+
+  /* 移动端边距和间距调整 */
+  .wedding-card {
+    margin-bottom: 1rem;
+  }
+
+  /* 步骤列表在移动端的样式改进 */
+  .stepsList-item {
+    flex-shrink: 0;
+    min-width: 150px;
+  }
+
+  /* 移动端固定头部导航 */
+  .mobile-nav-spacer {
+    height: 60px;
+  }
+}
+
+/* 改进移动端的音乐播放器体验 */
+@media (max-width: 768px) {
+
+  /* 增大播放/暂停按钮 */
+  .music-player-button {
+    min-width: 48px;
+    min-height: 48px;
+  }
+
+  /* 增大进度条可点击区域 */
+  .progress-bar-touch {
+    height: 20px;
+    position: relative;
+  }
+
+  .progress-bar-touch::before {
+    content: '';
+    position: absolute;
+    top: -10px;
+    bottom: -10px;
+    left: 0;
+    right: 0;
+  }
+}
+
+/* 安全区域适配 (针对刘海屏和底部手势区域的手机) */
+@supports (padding: max(0px)) {
+  .safe-area-padding {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+
+/* 黑暗模式支持 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-rgb: 18, 18, 18;
+    --foreground-rgb: 255, 255, 255;
+    --border-color: #333;
+  }
+
+  .wedding-card {
+    background: #222;
+    border-color: #333;
+  }
+
+  input,
+  select,
+  textarea {
+    background: #333;
+    color: #fff;
+    border-color: #444;
+  }
+
+  .bg-white {
+    background-color: #222 !important;
+  }
+
+  .text-gray-700 {
+    color: #ccc !important;
+  }
+
+  .text-gray-500 {
+    color: #aaa !important;
+  }
+
+  /* 调整某些颜色，以适应黑暗模式 */
+  .bg-gray-50 {
+    background-color: #2a2a2a !important;
+  }
+
+  .bg-blue-50 {
+    background-color: rgba(59, 130, 246, 0.1) !important;
+  }
+
+  .bg-pink-50 {
+    background-color: rgba(236, 72, 153, 0.1) !important;
+  }
+}
