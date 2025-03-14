@@ -20,11 +20,26 @@ const AudioTrimmer = ({
   const [startPoint, setStartPoint] = useState(initialTrimPoints.start || 0);
   const [endPoint, setEndPoint] = useState(initialTrimPoints.end || 0);
   
+  // 移动设备检测
+  const [isMobile, setIsMobile] = useState(false);
+  
   // 音频处理
   const audioRef = useRef(null);
   const requestRef = useRef(null);
-  const waveformCanvasRef = useRef(null);
-  const progressCanvasRef = useRef(null);
+  
+  // 检测是否为移动设备
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
   
   // 初始化音频
   useEffect(() => {
@@ -42,8 +57,7 @@ const AudioTrimmer = ({
         setEndPoint(Math.min(initialTrimPoints.end, audioDuration));
       }
       
-      // 加载波形数据
-      loadAudioWaveform(audioUrl, audioDuration);
+      setIsLoading(false);
     };
     
     const handleError = (err) => {
@@ -64,253 +78,6 @@ const AudioTrimmer = ({
       }
     };
   }, [audioUrl, initialTrimPoints]);
-  
-  // 加载音频波形
-  const loadAudioWaveform = async (url, audioDuration) => {
-    try {
-      setIsLoading(true);
-      
-      console.log("开始加载波形图...");
-      
-      // 创建音频上下文
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      
-      // 获取音频数据
-      let audioBuffer;
-      
-      if (isPreset) {
-        // 预设音乐使用XMLHttpRequest，更可靠地处理跨域问题
-        audioBuffer = await new Promise((resolve, reject) => {
-          const request = new XMLHttpRequest();
-          request.open('GET', url, true);
-          request.responseType = 'arraybuffer';
-          
-          request.onload = () => {
-            audioContext.decodeAudioData(request.response)
-              .then(buffer => resolve(buffer))
-              .catch(err => reject(err));
-          };
-          
-          request.onerror = () => {
-            reject(new Error('Failed to load audio file'));
-          };
-          
-          request.send();
-        });
-      } else {
-        // 上传的音乐从URL获取
-        const response = await fetch(url);
-        const arrayBuffer = await response.arrayBuffer();
-        audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-      }
-      
-      // 绘制波形
-      console.log("音频解码成功，开始绘制波形...");
-      drawWaveform(audioBuffer);
-      
-      // 完成加载
-      setIsLoading(false);
-    } catch (error) {
-      console.error("波形图加载失败:", error);
-      // 加载失败时绘制默认波形
-      console.log("加载失败，使用备用波形...");
-      drawFallbackWaveform();
-      setIsLoading(false);
-    }
-  };
-  
-  // 绘制波形图
-  const drawWaveform = (audioBuffer) => {
-    if (!waveformCanvasRef.current) {
-      console.error("波形图Canvas引用不存在");
-      return;
-    }
-    
-    const canvas = waveformCanvasRef.current;
-    const ctx = canvas.getContext('2d');
-    // 动态设置canvas尺寸
-    canvas.width = canvas.parentElement.clientWidth;
-    canvas.height = canvas.parentElement.clientHeight;
-    const width = canvas.width;
-    const height = canvas.height;
-    
-    // 清除画布
-    ctx.clearRect(0, 0, width, height);
-    
-    // 获取音频数据
-    const channelData = audioBuffer.getChannelData(0);
-    const dataLength = channelData.length;
-    
-    console.log(`开始绘制波形，数据长度: ${dataLength}, Canvas宽度: ${width}`);
-    
-    // 计算采样步长
-    const step = Math.max(1, Math.floor(dataLength / width));
-    const amp = height / 2;
-    
-    // 设置画布背景
-    ctx.fillStyle = '#e5e7eb';
-    ctx.fillRect(0, 0, width, height);
-    
-    ctx.fillStyle = '#6b7280'; // 波形颜色 - 灰色
-    
-    // 绘制波形 - 更可靠的方法
-    for (let i = 0; i < width; i++) {
-      let min = 0;
-      let max = 0;
-      
-      // 找出每个像素宽度内的最大和最小值
-      for (let j = 0; j < step; j++) {
-        const index = Math.min(dataLength - 1, i * step + j);
-        const value = channelData[index];
-        
-        if (value < min) min = value;
-        if (value > max) max = value;
-      }
-      
-      // 确保有一定的高度 (即使是静音部分)
-      const minHeight = height * 0.05;
-      const waveHeight = Math.max(minHeight, Math.abs(max - min) * amp);
-      
-      // 在中心线绘制波形
-      const y = (height / 2) - (waveHeight / 2);
-      ctx.fillRect(i, y, 1, waveHeight);
-    }
-    
-    console.log("波形绘制完成，更新选择区域");
-    
-    // 初始绘制选中区域
-    updateSelectedArea();
-  };
-  
-  // 绘制备用波形 - 使用正弦波形
-  const drawFallbackWaveform = () => {
-    if (!waveformCanvasRef.current) {
-      console.error("波形图Canvas引用不存在");
-      return;
-    }
-    
-    const canvas = waveformCanvasRef.current;
-    const ctx = canvas.getContext('2d');
-    // 动态设置canvas尺寸
-    canvas.width = canvas.parentElement.clientWidth;
-    canvas.height = canvas.parentElement.clientHeight;
-    const width = canvas.width;
-    const height = canvas.height;
-    
-    // 清除画布
-    ctx.clearRect(0, 0, width, height);
-    
-    // 设置画布背景
-    ctx.fillStyle = '#e5e7eb';
-    ctx.fillRect(0, 0, width, height);
-    
-    // 绘制平滑的正弦波形而不是随机噪声
-    ctx.fillStyle = '#6b7280';
-    ctx.beginPath();
-    
-    const centerY = height / 2;
-    const amplitude = height * 0.3;
-    
-    // 创建一个数组来生成看起来像音乐波形的模式
-    const segments = [
-      { freq: 0.02, amp: 0.8 },  // 低频高振幅
-      { freq: 0.05, amp: 0.4 },  // 中频中振幅
-      { freq: 0.1, amp: 0.2 }    // 高频低振幅
-    ];
-    
-    for (let i = 0; i < width; i++) {
-      let sample = 0;
-      
-      // 合并不同频率的正弦波
-      segments.forEach(seg => {
-        sample += Math.sin(i * seg.freq) * seg.amp;
-      });
-      
-      // 归一化到 -1 到 1 范围
-      sample /= segments.length * 0.8;
-      
-      // 计算高度并绘制
-      const barHeight = sample * amplitude;
-      ctx.fillRect(
-        i,
-        centerY - barHeight/2,
-        1,
-        Math.abs(barHeight)
-      );
-    }
-    
-    console.log("备用波形绘制完成");
-    
-    // 初始绘制选中区域
-    updateSelectedArea();
-  };
-  
-  // 更新选中区域
-  const updateSelectedArea = () => {
-    if (!progressCanvasRef.current || duration === 0) {
-      console.log("无法更新选择区域：进度Canvas引用不存在或持续时间为0");
-      return;
-    }
-    
-    const canvas = progressCanvasRef.current;
-    const ctx = canvas.getContext('2d');
-    // 动态设置canvas尺寸
-    canvas.width = canvas.parentElement.clientWidth;
-    canvas.height = canvas.parentElement.clientHeight;
-    const width = canvas.width;
-    const height = canvas.height;
-    
-    // 清除画布
-    ctx.clearRect(0, 0, width, height);
-    
-    // 计算开始和结束位置
-    const startX = Math.max(0, (startPoint / duration) * width);
-    const endX = Math.min(width, (endPoint / duration) * width);
-    const selectionWidth = Math.max(0, endX - startX);
-    
-    console.log(`更新选择区域: startX=${startX}, endX=${endX}, width=${width}, duration=${duration}`);
-    
-    // 绘制高亮选中区域
-    ctx.fillStyle = 'rgba(59, 130, 246, 0.2)'; // 蓝色半透明
-    ctx.fillRect(startX, 0, selectionWidth, height);
-    
-    // 绘制非选中区域遮罩
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-    ctx.fillRect(0, 0, startX, height);
-    ctx.fillRect(endX, 0, width - endX, height);
-    
-    // 绘制选中区域边框
-    ctx.strokeStyle = '#3b82f6';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(startX, 0, selectionWidth, height);
-    
-    // 绘制起点和终点手柄
-    const handleSize = 8;
-    
-    // 起点手柄
-    ctx.fillStyle = '#3b82f6'; // 蓝色
-    ctx.fillRect(startX - handleSize/2, 0, handleSize, height);
-    
-    // 终点手柄
-    ctx.fillStyle = '#3b82f6'; // 蓝色
-    ctx.fillRect(endX - handleSize/2, 0, handleSize, height);
-    
-    // 绘制当前播放位置
-    if (isPlaying && currentTime >= 0) {
-      const playheadX = (currentTime / duration) * width;
-      ctx.fillStyle = '#ef4444'; // 红色
-      ctx.fillRect(playheadX - 1, 0, 3, height);
-      
-      // 添加小圆点标记播放位置
-      ctx.beginPath();
-      ctx.arc(playheadX, height/2, 6, 0, Math.PI * 2);
-      ctx.fillStyle = '#ef4444';
-      ctx.fill();
-      ctx.strokeStyle = 'white';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
-  };
   
   // 更新播放进度
   useEffect(() => {
@@ -340,24 +107,6 @@ const AudioTrimmer = ({
       }
     };
   }, [isPlaying, endPoint, startPoint]);
-  
-  // 当裁剪点变更时更新选中区域
-  // 添加窗口大小变化监听
-  useEffect(() => {
-    const handleResize = () => {
-      if (waveformCanvasRef.current) {
-        drawWaveform(audioBuffer);
-      }
-      updateSelectedArea();
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useEffect(() => {
-    updateSelectedArea();
-  }, [startPoint, endPoint, currentTime, isPlaying, duration]);
   
   // 播放/暂停
   const togglePlay = () => {
@@ -399,22 +148,22 @@ const AudioTrimmer = ({
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
   
-  // 处理波形点击
-  const handleWaveformClick = (e) => {
-    if (!waveformCanvasRef.current || duration === 0) return;
+  // 处理进度条点击
+  const handleProgressClick = (e) => {
+    if (!audioRef.current || duration === 0) return;
     
-    const canvas = waveformCanvasRef.current;
-    const rect = canvas.getBoundingClientRect();
+    const progressBar = e.currentTarget;
+    const rect = progressBar.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const clickPosition = x / rect.width; // 使用rect.width而不是canvas.width
+    const clickPosition = x / rect.width;
     const timePosition = clickPosition * duration;
     
-    console.log(`波形点击: x=${x}, position=${clickPosition}, time=${timePosition}`);
-    
-    // 设置当前时间
-    setCurrentTime(timePosition);
-    if (audioRef.current) {
-      audioRef.current.currentTime = timePosition;
+    // 设置当前时间，限制在裁剪范围内
+    if (timePosition >= startPoint && timePosition <= endPoint) {
+      setCurrentTime(timePosition);
+      if (audioRef.current) {
+        audioRef.current.currentTime = timePosition;
+      }
     }
   };
   
@@ -445,35 +194,49 @@ const AudioTrimmer = ({
           </button>
         </div>
         
-        {/* 波形图区域 */}
-        <div className="relative w-full h-32 mb-4 cursor-pointer rounded-lg overflow-hidden bg-base-200" onClick={handleWaveformClick}>
-          {/* 基础波形 */}
-          <canvas 
-            ref={waveformCanvasRef} 
-            width={null} 
-            height={128} 
-            className="w-full h-full absolute top-0 left-0"
-          />
-          
-          {/* 选择区域和播放头 */}
-          <canvas 
-            ref={progressCanvasRef} 
-            width={null} 
-            height={128} 
-            className="w-full h-full absolute top-0 left-0"
-          />
-          
-          {/* 波形加载状态提示 */}
-          <div className="absolute top-2 left-2 text-xs text-base-content opacity-70">
-            波形显示: {waveformCanvasRef.current ? "已加载" : "加载中..."}
+        {/* 显示当前播放进度 */}
+        <div className="mb-4">
+          <div className="flex justify-between text-xs text-base-content opacity-70 mb-1">
+            <span>当前位置: {formatTime(currentTime)}</span>
+            <span>总时长: {formatTime(duration)}</span>
           </div>
           
-          {/* 当前播放时间指示 */}
-          {isPlaying && (
-            <div className="badge badge-sm badge-primary absolute top-2 right-2">
-              {formatTime(currentTime)}
-            </div>
-          )}
+          <div 
+            className="w-full h-8 bg-base-300 rounded-lg cursor-pointer relative overflow-hidden"
+            onClick={handleProgressClick}
+          >
+            {/* 裁剪区域显示 */}
+            <div 
+              className="absolute top-0 h-full bg-primary opacity-20"
+              style={{ 
+                left: `${(startPoint / duration) * 100}%`, 
+                width: `${((endPoint - startPoint) / duration) * 100}%` 
+              }}
+            ></div>
+            
+            {/* 起始点标记 */}
+            <div
+              className="absolute top-0 h-full w-1 bg-primary"
+              style={{ left: `${(startPoint / duration) * 100}%` }}
+            ></div>
+            
+            {/* 结束点标记 */}
+            <div
+              className="absolute top-0 h-full w-1 bg-primary"
+              style={{ left: `${(endPoint / duration) * 100}%` }}
+            ></div>
+            
+            {/* 当前播放位置 */}
+            {isPlaying && (
+              <div
+                className="absolute top-0 h-full w-1 bg-red-500"
+                style={{ left: `${(currentTime / duration) * 100}%` }}
+              ></div>
+            )}
+            
+            {/* 背景填充 */}
+            <div className="absolute left-0 top-0 h-full w-full bg-base-300 -z-10"></div>
+          </div>
         </div>
         
         {/* 裁剪控制 */}

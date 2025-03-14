@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Pause, Volume2, VolumeX, Music, Scissors, SkipForward, SkipBack } from 'lucide-react';
 import { getMusicURL, saveMusicTrimSettings, getMusicTrimSettings } from '../lib/musicStorage';
 import AudioTrimmer from './AudioTrimmer';
-import SimpleWaveform from './SimpleWaveform';
 
 const MusicPlayer = ({ 
   musicSource, 
@@ -98,7 +97,7 @@ const MusicPlayer = ({
           // 预设音乐直接使用路径
           url = musicSource;
           
-          // 获取预设音乐的裁剪设置 - 修改这里，添加isPreset参数
+          // 获取预设音乐的裁剪设置
           const savedTrimSettings = await getMusicTrimSettings(musicSource, true);
           if (savedTrimSettings && 
               (savedTrimSettings.start > 0 || savedTrimSettings.end > 0)) {
@@ -112,7 +111,7 @@ const MusicPlayer = ({
           // 从IndexedDB获取音乐文件
           url = await getMusicURL(musicSource);
           
-          // 获取裁剪设置 - 上传音乐不需要isPreset参数
+          // 获取裁剪设置
           const savedTrimSettings = await getMusicTrimSettings(musicSource);
           if (savedTrimSettings && 
               (savedTrimSettings.start > 0 || savedTrimSettings.end > 0)) {
@@ -437,32 +436,32 @@ const MusicPlayer = ({
   };
   
   // 保存裁剪设置
-const handleSaveTrimSettings = async (newTrimSettings, playImmediately = false) => {
-  try {
-    // 修改：所有音乐都保存到IndexedDB，但区分预设和上传音乐
-    await saveMusicTrimSettings(musicSource, newTrimSettings, isPreset);
-    
-    // 更新本地状态
-    setTrimSettings(newTrimSettings);
-    setIsTrimmed(true);
-    
-    // 将音频定位到裁剪开始位置
-    if (audioRef.current) {
-      audioRef.current.currentTime = newTrimSettings.start;
+  const handleSaveTrimSettings = async (newTrimSettings, playImmediately = false) => {
+    try {
+      // 所有音乐都保存到IndexedDB，但区分预设和上传音乐
+      await saveMusicTrimSettings(musicSource, newTrimSettings, isPreset);
+      
+      // 更新本地状态
+      setTrimSettings(newTrimSettings);
+      setIsTrimmed(true);
+      
+      // 将音频定位到裁剪开始位置
+      if (audioRef.current) {
+        audioRef.current.currentTime = newTrimSettings.start;
+      }
+      
+      // 关闭裁剪工具
+      setShowTrimmer(false);
+      
+      // 如果请求立即播放，则开始播放
+      if (playImmediately) {
+        setTimeout(() => playAudio(), 100);
+      }
+    } catch (error) {
+      console.error('保存裁剪设置失败:', error);
+      alert('保存裁剪设置失败，请重试');
     }
-    
-    // 关闭裁剪工具
-    setShowTrimmer(false);
-    
-    // 如果请求立即播放，则开始播放
-    if (playImmediately) {
-      setTimeout(() => playAudio(), 100);
-    }
-  } catch (error) {
-    console.error('保存裁剪设置失败:', error);
-    alert('保存裁剪设置失败，请重试');
-  }
-};
+  };
 
   // 计算进度条显示
   const calculateProgressPercentage = () => {
@@ -539,31 +538,21 @@ const handleSaveTrimSettings = async (newTrimSettings, playImmediately = false) 
             
             <div 
               ref={progressBarRef}
-              className="w-full h-10 bg-base-300 rounded-lg cursor-pointer relative overflow-hidden"
+              className="w-full h-8 bg-base-300 rounded-lg cursor-pointer relative overflow-hidden"
               onClick={seekAudio}
               onTouchStart={seekAudio}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
             >
-              {/* 使用简化波形组件 */}
-              <div className="absolute inset-0">
-                <SimpleWaveform 
-                  audioUrl={audioUrl}
-                  duration={duration}
-                  currentTime={currentTime}
-                  onTimeUpdate={jumpToTime}
-                />
-              </div>
-              
-              {/* 播放进度条 */}
+              {/* 进度条 */}
               <div 
-                className="absolute left-0 top-0 h-full bg-primary opacity-20 pointer-events-none"
+                className="absolute left-0 top-0 h-full bg-primary opacity-70"
                 style={{ width: `${calculateProgressPercentage()}%` }}
               ></div>
               
               {/* 播放位置指示器 */}
               <div
-                className="absolute top-0 h-full w-1 bg-primary pointer-events-none"
+                className="absolute top-0 h-full w-1 bg-primary opacity-90"
                 style={{ left: `calc(${calculateProgressPercentage()}% - 1px)` }}
               ></div>
             </div>
