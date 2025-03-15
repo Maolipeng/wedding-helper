@@ -63,24 +63,14 @@ export const defaultProgram = [
     id: 7, 
     name: '敬酒环节', 
     script: '请各位来宾准备好手中的酒杯，让我们共同祝福这对新人！干杯！', 
-    music: '/audio/Love Story.mp3',
-    musicName: 'Love Story',
-    musicSource: 'preset2',
+    music: '/audio/给你们.mp3',
+    musicName: '给你们',
+    musicSource: 'preset5',
     isPreset: true, 
     duration: 20 
   },
   { 
     id: 8, 
-    name: '蛋糕切分', 
-    script: '现在是甜蜜的时刻，请新人一起切蛋糕，象征着甜蜜的爱情和美好的未来。', 
-    music: '/audio/给你们.mp3',
-    musicName: '给你们',
-    musicSource: 'preset5',
-    isPreset: true, 
-    duration: 5 
-  },
-  { 
-    id: 9, 
     name: '抛花球', 
     script: '请所有未婚女士前来参加抛花球环节，准备好，幸运的下一位新娘会是谁呢？', 
     music: '/audio/这世界那么多人-莫文蔚.mp3',
@@ -90,7 +80,7 @@ export const defaultProgram = [
     duration: 5 
   },
   { 
-    id: 10, 
+    id: 9, 
     name: '婚礼结束', 
     script: '感谢各位的到来，分享新人的喜悦，婚礼到此结束，请大家继续享用美食，祝各位宾客生活愉快！', 
     music: '/audio/A Thousand Years.mp3',
