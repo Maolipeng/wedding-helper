@@ -80,7 +80,7 @@ app/
 
 1. 克隆仓库
 ```bash
-git clone <https://github.com/Maolipeng/wedding-helper.git>
+git clone https://github.com/Maolipeng/wedding-helper.git
 cd wedding-helper
 ```
 
