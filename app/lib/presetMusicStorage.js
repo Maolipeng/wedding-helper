@@ -46,6 +46,12 @@ const defaultPresetMusic = [
     "name": "Stay With Me",
     "path": "/audio/Stay With Me.mp3",
     "category": "浪漫"
+  },
+  {
+    "id": "preset8",
+    "name": "花海钢琴版",
+    "path": "/audio/泽凉 - 花海钢琴版.mp3",
+    "category": "浪漫"
   }
 ]
 

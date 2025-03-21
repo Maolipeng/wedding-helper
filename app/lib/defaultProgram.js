@@ -1,6 +1,6 @@
 export const defaultProgram = [
   { 
-    id: 1, 
+    id: 0, 
     name: '来宾入场', 
     script: '欢迎各位来宾的到来，请大家入座，婚礼即将开始。', 
     music: '/audio/Love Story.mp3', 
@@ -8,6 +8,16 @@ export const defaultProgram = [
     musicSource: 'preset2',
     isPreset: true,
     duration: 15 
+  },
+  {
+    id: 1,
+    name: '主持人开场',
+    script: '欢迎主持人登场',
+    music: '/audio/泽凉 - 花海钢琴版.mp3',
+    musicName: '花海钢琴版',
+    musicSource: 'preset8',
+    isPreset: true,
+    duration: 5 
   },
   { 
     id: 2, 
