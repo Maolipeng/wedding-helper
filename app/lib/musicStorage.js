@@ -193,7 +193,7 @@ export const deleteMusicFromDB = async (musicId) => {
   }
 };
 
-// 保存音频裁剪设置（修复版 - 支持预设音乐）
+// 保存音频裁剪设置（修复版 - 支持预设音乐和云同步）
 export const saveMusicTrimSettings = async (musicId, trimSettings, isPreset = false) => {
   if (!trimSettings || typeof trimSettings !== 'object') {
     throw new Error('裁剪设置格式不正确');
@@ -201,7 +201,9 @@ export const saveMusicTrimSettings = async (musicId, trimSettings, isPreset = fa
   
   try {
     const db = await initMusicDB();
-    return new Promise((resolve, reject) => {
+    
+    // 保存到本地IndexedDB
+    const saveToLocal = new Promise((resolve, reject) => {
       const transaction = db.transaction([TRIM_STORE], 'readwrite');
       const trimStore = transaction.objectStore(TRIM_STORE);
       
@@ -227,6 +229,41 @@ export const saveMusicTrimSettings = async (musicId, trimSettings, isPreset = fa
         reject("保存裁剪设置失败: " + event.target.error);
       };
     });
+    
+    // 检查是否启用云同步
+    const isCloudSyncEnabled = typeof window !== 'undefined' && 
+                              localStorage.getItem('enableCloudSync') === 'true';
+    
+    // 如果启用了云同步，则同时保存到云端
+    if (isCloudSyncEnabled) {
+      try {
+        // 使用fetch API调用同步接口
+        fetch('/api/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: 'syncTrim',
+            data: {
+              musicId: isPreset ? `preset:${musicId}` : musicId,
+              settings: trimSettings,
+              isPreset
+            }
+          })
+        }).catch(err => {
+          console.error('同步裁剪设置到云端失败:', err);
+          // 云端同步失败不影响本地保存
+        });
+      } catch (error) {
+        console.error('请求云同步失败:', error);
+        // 继续本地保存
+      }
+    }
+    
+    // 等待本地保存完成
+    const savedRecord = await saveToLocal;
+    return savedRecord;
   } catch (error) {
     console.error("保存裁剪设置失败:", error);
     throw error;
@@ -271,5 +308,41 @@ export const getMusicTrimSettings = async (musicId, isPreset = false) => {
   } catch (error) {
     console.error("获取裁剪设置失败:", error);
     return null;
+  }
+};
+
+// 获取所有裁剪设置
+export const getAllTrimSettings = async () => {
+  try {
+    const db = await initMusicDB();
+    return new Promise((resolve, reject) => {
+      // 检查数据库是否包含裁剪设置存储
+      if (!db.objectStoreNames.contains(TRIM_STORE)) {
+        resolve([]); // 如果存储不存在，返回空数组
+        return;
+      }
+      
+      const transaction = db.transaction([TRIM_STORE], 'readonly');
+      const trimStore = transaction.objectStore(TRIM_STORE);
+      const request = trimStore.getAll();
+      
+      request.onsuccess = (event) => {
+        const trimRecords = event.target.result;
+        resolve(trimRecords.map(record => ({
+          musicId: record.musicId,
+          start: record.start,
+          end: record.end,
+          isPreset: record.isPreset
+        })));
+      };
+      
+      request.onerror = (event) => {
+        console.error("获取所有裁剪设置失败:", event.target.error);
+        resolve([]); // 出错时返回空数组
+      };
+    });
+  } catch (error) {
+    console.error("获取所有裁剪设置失败:", error);
+    return [];
   }
 };

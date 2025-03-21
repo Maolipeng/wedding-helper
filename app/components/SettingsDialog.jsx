@@ -1,15 +1,17 @@
 "use client";
 
-import React from 'react';
-import { X, Save, Music, Clock, Settings } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Save, Music, Clock, Settings, Database, RefreshCw, Link as LinkIcon } from 'lucide-react';
 
 const SettingsDialog = ({ 
   isOpen, 
   onClose, 
   settings, 
-  onSave 
+  onSave,
+  onSyncNow // 新增立即同步回调函数
 }) => {
   const [tempSettings, setTempSettings] = React.useState({ ...settings });
+  const [isSyncing, setIsSyncing] = useState(false); // 添加同步状态
   
   // 重置设置为当前值
   React.useEffect(() => {
@@ -23,6 +25,42 @@ const SettingsDialog = ({
   const handleSave = () => {
     onSave(tempSettings);
     onClose();
+  };
+  
+  // 处理立即同步按钮点击
+  const handleSyncNow = async () => {
+    if (!tempSettings.enableCloudSync) {
+      // 如果云同步未启用，提示用户
+      alert('请先启用云端同步功能');
+      return;
+    }
+    
+    setIsSyncing(true);
+    try {
+      await onSyncNow();
+      // 同步成功后延迟一下再取消加载状态，提供更好的视觉反馈
+      setTimeout(() => setIsSyncing(false), 500);
+    } catch (error) {
+      setIsSyncing(false);
+    }
+  };
+  
+  // 处理分享用户ID
+  const handleShareUserId = () => {
+    const userId = localStorage.getItem('wedding_client_id');
+    if (!userId) return;
+    
+    const shareUrl = `${window.location.origin}${window.location.pathname}?userId=${userId}`;
+    
+    // 复制链接到剪贴板
+    navigator.clipboard.writeText(shareUrl)
+      .then(() => {
+        alert('链接已复制到剪贴板，发送给其他设备以同步数据！');
+      })
+      .catch(err => {
+        console.error('无法复制链接:', err);
+        alert('请手动复制此链接: ' + shareUrl);
+      });
   };
   
   return (
@@ -88,6 +126,80 @@ const SettingsDialog = ({
                 <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-pink-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-pink-500"></div>
               </label>
             </div>
+            
+            {/* 云端同步设置 */}
+            <h4 className="font-medium text-gray-700 mb-3 pt-2 border-t border-gray-100">云端存储设置</h4>
+            
+            <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+              <div className="flex items-center">
+                <Database className="text-purple-500 mr-3" size={18} />
+                <div>
+                  <div className="font-medium">启用云端同步</div>
+                  <div className="text-sm text-gray-500">将您的婚礼数据备份至云端</div>
+                </div>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input 
+                  type="checkbox" 
+                  className="sr-only peer"
+                  checked={tempSettings.enableCloudSync}
+                  onChange={(e) => setTempSettings({
+                    ...tempSettings,
+                    enableCloudSync: e.target.checked
+                  })}
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-500"></div>
+              </label>
+            </div>
+            
+            {/* 立即同步按钮 */}
+            {tempSettings.enableCloudSync && (
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <div className="text-sm text-gray-600">
+                    <p>立即将本地数据同步到云端</p>
+                  </div>
+                  <button
+                    onClick={handleSyncNow}
+                    disabled={isSyncing}
+                    className={`flex items-center rounded-full px-3 py-1 text-sm ${
+                      isSyncing 
+                        ? 'bg-gray-200 text-gray-500 cursor-not-allowed' 
+                        : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                    }`}
+                  >
+                    <RefreshCw size={14} className={`mr-1 ${isSyncing ? 'animate-spin' : ''}`} />
+                    {isSyncing ? '同步中...' : '立即同步'}
+                  </button>
+                </div>
+                
+                <div className="mt-3 text-xs text-gray-500">
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>云端同步将保存婚礼流程和设置</li>
+                    <li>音乐裁剪设置也会被同步</li>
+                    <li>预设音乐库将被同步</li>
+                    <li>上传的音乐文件仍保存在本地</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+            
+            {/* 云端同步设置 - 用户ID共享部分 */}
+            {tempSettings.enableCloudSync && (
+              <div className="p-3 bg-indigo-50 rounded-lg mt-3">
+                <h5 className="font-medium text-indigo-700 mb-2">多设备同步</h5>
+                <p className="text-sm text-gray-600 mb-3">
+                  要在其他设备上同步数据，请分享下方链接。打开链接后，其他设备将使用相同的云端数据。
+                </p>
+                <button
+                  onClick={handleShareUserId}
+                  className="w-full bg-indigo-100 text-indigo-700 hover:bg-indigo-200 py-2 px-3 rounded-lg text-sm flex items-center justify-center"
+                >
+                  <LinkIcon size={14} className="mr-2" />
+                  复制设备同步链接
+                </button>
+              </div>
+            )}
           </div>
         </div>
         

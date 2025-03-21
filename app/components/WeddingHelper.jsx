@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Cog, Heart, Music, RotateCcw, AlertTriangle } from 'lucide-react';
 import { defaultProgram } from '../lib/defaultProgram';
 import {
@@ -10,6 +10,12 @@ import {
   deleteMusicFromDB
 } from '../lib/musicStorage';
 import { loadPresetMusic } from '../lib/presetMusicStorage';
+import { 
+  initSyncService, 
+  syncData, 
+  fetchCloudData, 
+  syncAllData 
+} from '../lib/clientSyncService';
 
 // 导入拆分组件
 import MobileNav from './ui/MobileNav';
@@ -21,11 +27,13 @@ import ScriptEditDialog from './ScriptEditDialog';
 import SettingsDialog from './SettingsDialog';
 import ConfettiEffect from './wedding/ConfettiEffect';
 import { useToast } from './ui/Toast';
+import { getAllTrimSettings, saveMusicTrimSettings } from '../lib/musicStorage'
 
 // 默认设置
 const DEFAULT_SETTINGS = {
   autoPlayMusic: true,   // 默认自动播放音乐
-  autoStartTimer: true   // 默认自动开始计时
+  autoStartTimer: true,  // 默认自动开始计时
+  enableCloudSync: false // 默认不启用云同步
 };
 
 const WeddingHelper = () => {
@@ -49,21 +57,221 @@ const WeddingHelper = () => {
   const [resetKey, setResetKey] = useState(0); // 用于重置组件状态的键
   // 添加重置确认对话框状态
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
- // 获取 toast 函数
+  // 获取 toast 函数
   const { toast } = useToast();
+  const initializeUserId = () => {
+    let userId = localStorage.getItem('wedding_client_id');
+    
+    // 如果没有本地用户ID，尝试从URL参数获取
+    if (!userId) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlUserId = urlParams.get('userId');
+      
+      if (urlUserId) {
+        // 如果URL中有用户ID，使用它
+        userId = urlUserId;
+        localStorage.setItem('wedding_client_id', userId);
+      } else {
+        // 生成新的用户ID
+        userId = 'user_' + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('wedding_client_id', userId);
+      }
+    }
+    
+    return userId;
+  };
+  const fetchCloudData = async () => {
+    try {
+      // 获取婚礼程序
+      const programResponse = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'fetchProgram' })
+      });
+      
+      // 获取设置
+      const settingsResponse = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'fetchSettings' })
+      });
+      
+      // 获取预设音乐
+      const presetsResponse = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'fetchPresets' })
+      });
+      
+      // 获取裁剪设置
+      const trimResponse = await fetch('/api/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'fetchTrimSettings' })
+      });
+      
+      // 处理响应
+      const [programData, settingsData, presetsData, trimData] = await Promise.all([
+        programResponse.ok ? programResponse.json() : { success: false },
+        settingsResponse.ok ? settingsResponse.json() : { success: false },
+        presetsResponse.ok ? presetsResponse.json() : { success: false },
+        trimResponse.ok ? trimResponse.json() : { success: false }
+      ]);
+      
+      // 将获取的数据应用到应用状态
+      let hasAnyData = false;
+      
+      if (programData.success && programData.result && programData.result.length > 0) {
+        setCustomProgram(programData.result);
+        localStorage.setItem('weddingProgram', JSON.stringify(programData.result));
+        hasAnyData = true;
+      }
+      
+      if (settingsData.success && settingsData.result) {
+        const cloudSettings = {
+          ...settingsData.result,
+          enableCloudSync: true  // 强制保持云同步启用
+        };
+        setSettings(cloudSettings);
+        localStorage.setItem('weddingSettings', JSON.stringify(cloudSettings));
+        hasAnyData = true;
+      }
+      
+      if (presetsData.success && presetsData.result && presetsData.result.length > 0) {
+        setPresetMusicLibrary(presetsData.result);
+        localStorage.setItem('weddingPresetMusic', JSON.stringify(presetsData.result));
+        hasAnyData = true;
+      }
+      
+      if (trimData.success && trimData.result && trimData.result.length > 0) {
+        // 应用裁剪设置到本地IndexedDB
+        for (const trim of trimData.result) {
+          try {
+            // 解析musicId
+            let musicId = trim.musicId;
+            let isPreset = trim.isPreset;
+            
+            // 预设音乐ID需要特殊处理
+            if (isPreset && musicId.startsWith('preset:')) {
+              musicId = musicId.substring(7); // 去掉 "preset:" 前缀
+            }
+            
+            // 保存到本地
+            await saveMusicTrimSettings(musicId, {
+              start: trim.start,
+              end: trim.end
+            }, isPreset);
+          } catch (err) {
+            console.error('保存裁剪设置失败:', err);
+          }
+        }
+        hasAnyData = true;
+      }
+      
+      return { success: hasAnyData };
+    } catch (error) {
+      console.error('获取云端数据失败:', error);
+      return { success: false, error };
+    }
+  };
   // 添加重置数据的函数
   const handleResetData = () => {
     // 打开确认对话框
     setResetDialogOpen(true);
   };
+  const loadAndSyncData = async () => {
+    // 首先加载本地数据
+    const { program, settings } = loadFromLocalStorage();
+    setSettings(settings);
+
+    // 检查是否启用云同步
+    if (settings.enableCloudSync) {
+      try {
+        // 尝试从云端获取数据
+        const cloudProgramResponse = await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'fetchProgram' })
+        });
+
+        const cloudSettingsResponse = await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'fetchSettings' })
+        });
+
+        // 处理婚礼程序数据
+        if (cloudProgramResponse.ok) {
+          const data = await cloudProgramResponse.json();
+          if (data.success && data.result && data.result.length > 0) {
+            // 使用云端数据
+            setCustomProgram(data.result);
+            localStorage.setItem('weddingProgram', JSON.stringify(data.result));
+            console.log('已从云端恢复婚礼程序数据');
+          } else {
+            // 如果云端没有数据，使用本地数据
+            setCustomProgram(program);
+          }
+        } else {
+          setCustomProgram(program);
+        }
+
+        // 处理设置数据
+        if (cloudSettingsResponse.ok) {
+          const data = await cloudSettingsResponse.json();
+          if (data.success && data.result) {
+            // 使用云端设置，但确保云同步选项保持当前状态
+            const cloudSettings = {
+              ...data.result,
+              enableCloudSync: settings.enableCloudSync
+            };
+            setSettings(cloudSettings);
+            localStorage.setItem('weddingSettings', JSON.stringify(cloudSettings));
+            console.log('已从云端恢复设置数据');
+          }
+        }
+      } catch (error) {
+        console.error('从云端获取数据失败:', error);
+        // 如果从云端获取失败，回退到使用本地数据
+        setCustomProgram(program);
+      }
+    } else {
+      // 未启用云同步，直接使用本地数据
+      setCustomProgram(program);
+    }
+
+    // 继续加载本地音乐和预设
+    const loadPresets = async () => { /* 原有代码 */ };
+    const loadUploadedMusic = async () => { /* 原有代码 */ };
+
+    await Promise.all([loadPresets(), loadUploadedMusic()]);
+    setInitialized(true);
+  };
 
   // 实际执行重置的函数
-  const confirmReset = () => {
+  const confirmReset = async () => {
     try {
       // 清除本地存储中的所有相关数据
       localStorage.removeItem('weddingProgram');
       localStorage.removeItem('weddingSettings');
       localStorage.removeItem('weddingPresetMusic');
+
+      // 如果启用了云同步，同时清除云端数据
+      // if (settings.enableCloudSync) {
+      //   try {
+      //     const response = await fetch('/api/sync', {
+      //       method: 'POST',
+      //       headers: { 'Content-Type': 'application/json' },
+      //       body: JSON.stringify({ action: 'clearData' })
+      //     });
+
+      //     if (!response.ok) {
+      //       console.error('清除云端数据失败');
+      //     }
+      //   } catch (err) {
+      //     console.error('请求清除云端数据失败:', err);
+      //   }
+      // }
 
       // 关闭对话框
       setResetDialogOpen(false);
@@ -81,6 +289,7 @@ const WeddingHelper = () => {
       setResetDialogOpen(false);
     }
   };
+
   // 从本地存储加载数据或使用默认数据
   const loadFromLocalStorage = () => {
     if (typeof window !== 'undefined') {
@@ -100,6 +309,27 @@ const WeddingHelper = () => {
     }
     return { program: defaultProgram, settings: DEFAULT_SETTINGS };
   };
+  const loadPresets = async () => {
+    try {
+      const presets = await loadPresetMusic();
+      setPresetMusicLibrary(presets);
+      return presets;
+    } catch (error) {
+      console.error('加载预设音乐列表失败:', error);
+      setPresetMusicLibrary([]);
+      return [];
+    }
+  };
+  const loadUploadedMusic = async () => {
+    try {
+      const musicList = await getAllMusicInfo();
+      setUploadedMusic(musicList);
+      return musicList;
+    } catch (error) {
+      console.error('加载上传音乐失败:', error);
+      return [];
+    }
+  };
 
   // 初始化 - 在客户端加载时执行
   useEffect(() => {
@@ -109,37 +339,191 @@ const WeddingHelper = () => {
     }).catch(err => {
       console.error('音乐数据库初始化失败:', err);
     });
-
-    // 加载保存的婚礼流程和设置
-    const { program, settings } = loadFromLocalStorage();
-    setCustomProgram(program);
-    setSettings(settings);
-
-    // 加载预设音乐库
-    const loadPresets = async () => {
-      try {
-        const presets = await loadPresetMusic();
-        setPresetMusicLibrary(presets);
-      } catch (error) {
-        console.error('加载预设音乐列表失败:', error);
-        setPresetMusicLibrary([]);
-      }
-    };
-
-    // 从 IndexedDB 加载上传的音乐信息
-    const loadUploadedMusic = async () => {
-      try {
-        const musicList = await getAllMusicInfo();
-        setUploadedMusic(musicList);
-      } catch (error) {
-        console.error('加载上传音乐失败:', error);
-      }
-    };
-
-    Promise.all([loadPresets(), loadUploadedMusic()]).then(() => {
-      setInitialized(true);
-    });
+    
+    // 初始化用户ID
+    initializeUserId();
+  
+    // 检查URL中是否包含userId参数
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlUserId = urlParams.get('userId');
+    
+    if (urlUserId) {
+      // 如果URL中包含userId，这表明用户正在尝试同步数据
+      // 自动启用云同步并使用该userId
+      localStorage.setItem('wedding_client_id', urlUserId);
+      localStorage.setItem('enableCloudSync', 'true');
+      
+      // 显示正在同步通知
+      toast.info('检测到数据同步请求，正在从云端获取数据...');
+      
+      // 加载本地默认值作为后备
+      const { program: localProgram, settings: localSettings } = loadFromLocalStorage();
+      // 将本地enableCloudSync设置为true
+      const updatedSettings = { ...localSettings, enableCloudSync: true };
+      setSettings(updatedSettings);
+      
+      // 先尝试从云端获取数据
+      fetchCloudData().then(cloudData => {
+        if (cloudData.success) {
+          // 使用云端数据
+          toast.success('云端数据同步成功！');
+        } else {
+          // 使用本地数据
+          setCustomProgram(localProgram);
+          toast.warning('未找到云端数据，使用本地数据');
+        }
+        
+        // 继续加载音乐和预设
+        loadPresets().then(() => {
+          loadUploadedMusic().then(() => {
+            setInitialized(true);
+          });
+        });
+      }).catch(err => {
+        console.error('获取云端数据失败:', err);
+        // 失败时使用本地数据
+        setCustomProgram(localProgram);
+        
+        // 继续加载音乐和预设
+        loadPresets().then(() => {
+          loadUploadedMusic().then(() => {
+            setInitialized(true);
+          });
+        });
+      });
+    } else {
+      // 正常初始化流程
+      const { program, settings } = loadFromLocalStorage();
+      setSettings(settings);
+      setCustomProgram(program);
+      
+      Promise.all([loadPresets(), loadUploadedMusic()]).then(() => {
+        setInitialized(true);
+        
+        // 如果启用了云同步，尝试从云端获取更新的数据
+        if (settings.enableCloudSync) {
+          fetchCloudData().then(cloudData => {
+            if (cloudData.success) {
+              // 使用云端数据更新本地数据
+              toast.info('已从云端同步最新数据');
+            }
+          }).catch(err => {
+            console.error('从云端获取数据失败:', err);
+          });
+        }
+      });
+    }
   }, []);
+  // 添加设置变更监听，处理云同步状态变化
+useEffect(() => {
+  if (!initialized) return;
+
+  try {
+    // 检测是否刚刚开启了云同步
+    const previousCloudSyncState = localStorage.getItem('enableCloudSync') === 'true';
+    const cloudSyncJustEnabled = settings.enableCloudSync && !previousCloudSyncState;
+
+    // 保存设置到本地
+    localStorage.setItem('weddingSettings', JSON.stringify(settings));
+    localStorage.setItem('enableCloudSync', settings.enableCloudSync ? 'true' : 'false');
+    
+    // 如果刚刚开启了云同步，尝试从云端恢复数据
+    if (cloudSyncJustEnabled) {
+      toast.info('正在从云端同步数据...', 2000);
+      fetchCloudData().then(cloudData => {
+        if (cloudData.success) {
+          toast.success('云端数据同步成功！');
+        } else {
+          // 如果云端没有数据，则将本地数据同步到云端
+          handleSyncNow().catch(err => {
+            console.error('同步数据到云端失败:', err);
+          });
+        }
+      }).catch(err => {
+        console.error('从云端获取数据失败:', err);
+        toast.error('从云端获取数据失败，请检查网络连接');
+      });
+    }
+    // 如果云同步已启用但不是刚开启的，只同步设置到云端
+    else if (settings.enableCloudSync) {
+      syncData().catch(err => {
+        console.error('同步设置失败:', err);
+      });
+    }
+  } catch (e) {
+    console.error('无法保存设置到本地存储', e);
+  }
+}, [settings, initialized]);
+
+  // 初始化云同步服务
+ // 初始化云同步服务
+useEffect(() => {
+  if (initialized && settings.enableCloudSync) {
+    // 存储同步状态
+    localStorage.setItem('enableCloudSync', 'true');
+    
+    // 检查数据库状态
+    fetch('/api/db-status')
+      .then(response => response.json())
+      .then(status => {
+        if (!status.success || !status.connected) {
+          console.warn('数据库连接不可用，云同步可能不工作');
+          toast.error('连接云服务失败，请检查网络');
+          return;
+        }
+        
+        // 执行初始同步
+        syncData().catch(err => {
+          console.error('数据同步失败:', err);
+        });
+        
+        // 设置定期同步
+        const intervalId = setInterval(() => {
+          syncData().catch(err => {
+            console.error('定期同步失败:', err);
+          });
+        }, 5 * 60 * 1000); // 每5分钟同步一次
+        
+        // 清理函数，组件卸载时清除定时器
+        return () => clearInterval(intervalId);
+      })
+      .catch(err => {
+        console.error('检查数据库状态失败:', err);
+        toast.error('连接云服务失败，请检查网络');
+      });
+  } else if (initialized) {
+    // 如果禁用云同步，更新 localStorage
+    localStorage.setItem('enableCloudSync', 'false');
+  }
+}, [initialized, settings.enableCloudSync]);
+
+  // 在首次加载时检查数据库状态
+  useEffect(() => {
+    if (initialized && settings.enableCloudSync) {
+      // 检查数据库连接状态
+      fetch('/api/db-status')
+        .then(response => response.json())
+        .then(data => {
+          if (!data.success || !data.connected) {
+            // 数据库连接失败，显示通知
+            toast.error('云服务连接失败: ' + (data.message || '服务不可用'), 5000);
+
+            // 自动禁用云同步
+            if (settings.enableCloudSync) {
+              setSettings({
+                ...settings,
+                enableCloudSync: false
+              });
+              localStorage.setItem('enableCloudSync', 'false');
+              toast.info('已自动禁用云同步功能', 3000);
+            }
+          }
+        })
+        .catch(err => {
+          console.error('检查数据库状态失败:', err);
+        });
+    }
+  }, [initialized, settings.enableCloudSync]);
 
   // 保存到本地存储
   useEffect(() => {
@@ -147,21 +531,93 @@ const WeddingHelper = () => {
 
     try {
       localStorage.setItem('weddingProgram', JSON.stringify(customProgram));
+
+      // 如果启用了云同步，则执行同步
+      if (settings.enableCloudSync) {
+        syncData().catch(err => {
+          console.error('同步程序失败:', err);
+        });
+      }
     } catch (e) {
       console.error('无法保存流程到本地存储', e);
     }
-  }, [customProgram, initialized]);
+  }, [customProgram, initialized, settings.enableCloudSync]);
 
   // 保存设置到本地存储
   useEffect(() => {
     if (!initialized) return;
 
     try {
+      // 检测是否刚刚开启了云同步
+      const previousCloudSyncState = localStorage.getItem('enableCloudSync') === 'true';
+      const cloudSyncJustEnabled = settings.enableCloudSync && !previousCloudSyncState;
+
+      // 保存设置到本地
       localStorage.setItem('weddingSettings', JSON.stringify(settings));
+      localStorage.setItem('enableCloudSync', settings.enableCloudSync ? 'true' : 'false');
+
+      // 如果刚刚开启了云同步，尝试从云端恢复数据
+      if (cloudSyncJustEnabled) {
+        toast.info('正在从云端同步数据...', 2000);
+        // 调用上面新添加的loadAndSyncData函数，从云端获取数据
+        loadAndSyncData();
+      }
+      // 如果云同步已启用但不是刚开启的，只同步设置到云端
+      else if (settings.enableCloudSync) {
+        syncData().catch(err => {
+          console.error('同步设置失败:', err);
+        });
+      }
     } catch (e) {
       console.error('无法保存设置到本地存储', e);
     }
   }, [settings, initialized]);
+
+ // 改进的立即同步函数，使用批量同步API
+ const handleSyncNow = async () => {
+  if (!settings.enableCloudSync) {
+    toast.error('云端同步未启用，无法执行同步操作');
+    return;
+  }
+  
+  toast.info('正在同步数据到云端...', 2000);
+  
+  try {
+    // 1. 获取所有裁剪设置
+    const allTrimSettings = await getAllTrimSettings();
+    
+    // 2. 使用客户端同步服务
+    const result = await syncAllData(
+      customProgram,
+      settings,
+      presetMusicLibrary,
+      allTrimSettings
+    );
+    
+    if (result.success) {
+      // 显示成功信息
+      const stats = result.results;
+      let successMessage = '数据已成功同步到云端！\n';
+      
+      if (stats.program) successMessage += '✓ 婚礼流程\n';
+      if (stats.settings) successMessage += '✓ 应用设置\n';
+      if (stats.presetMusic) successMessage += '✓ 预设音乐\n';
+      if (stats.trimSettings > 0) {
+        successMessage += `✓ 音频裁剪设置 (${stats.trimSettings}/${allTrimSettings.length})`;
+      }
+      
+      toast.success(successMessage, 5000);
+    } else {
+      toast.error('同步失败: ' + (result.message || '未知错误'), 3000);
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('同步数据失败:', error);
+    toast.error('同步失败: ' + (error.message || '未知错误'), 3000);
+    throw error;
+  }
+};
 
   // 跳到下一个环节
   const nextStep = () => {
@@ -223,7 +679,15 @@ const WeddingHelper = () => {
     if (currentStep >= updatedProgram.length) {
       setCurrentStep(Math.max(0, updatedProgram.length - 1));
     }
+
+    // 如果启用了云同步，则同步到云端
+    if (settings.enableCloudSync) {
+      syncData().catch(err => {
+        console.error('同步程序失败:', err);
+      });
+    }
   };
+
   // 计算下一个环节的名称
   const getNextStepName = () => {
     if (currentStep < customProgram.length - 1) {
@@ -422,6 +886,7 @@ const WeddingHelper = () => {
         onClose={() => setSettingsDialogOpen(false)}
         settings={settings}
         onSave={handleSaveSettings}
+        onSyncNow={handleSyncNow}
       />
       {/* 重置确认对话框 */}
       {resetDialogOpen && (

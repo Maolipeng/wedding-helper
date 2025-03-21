@@ -1,0 +1,89 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 用户设置表
+model UserSettings {
+  id        String   @id @default(cuid())
+  userId    String   @unique @map("user_id")
+  settings  Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("user_settings")
+}
+
+// 婚礼程序表
+model WeddingProgram {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  name      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  steps     Step[]
+
+  @@unique([userId, name])
+  @@map("wedding_programs")
+}
+
+// 婚礼环节表
+model Step {
+  id          Int            @id @default(autoincrement())
+  stepId      String         @map("step_id")
+  name        String
+  script      String?        @db.Text
+  music       String?
+  musicSource String?        @map("music_source")
+  musicName   String?        @map("music_name")
+  isPreset    Boolean        @default(false) @map("is_preset")
+  duration    Int            @default(5)
+  position    Int
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  program     WeddingProgram @relation(fields: [programId], references: [id], onDelete: Cascade)
+  programId   Int            @map("program_id")
+
+  @@unique([programId, stepId])
+  @@map("wedding_steps")
+}
+
+// 音乐裁剪设置表
+model MusicTrimSettings {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  musicId   String   @map("music_id")
+  startTime Float    @default(0) @map("start_time")
+  endTime   Float    @default(0) @map("end_time")
+  isPreset  Boolean  @default(false) @map("is_preset")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, musicId])
+  @@map("music_trim_settings")
+}
+
+// 预设音乐表
+model PresetMusic {
+  id        Int      @id @default(autoincrement())
+  userId    String   @map("user_id")
+  musicId   String   @map("music_id")
+  name      String
+  path      String
+  category  String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, musicId])
+  @@map("preset_music")
+}
