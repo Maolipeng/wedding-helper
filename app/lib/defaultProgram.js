@@ -40,16 +40,6 @@ export const defaultProgram = [
     duration: 5 
   },
   { 
-    id: 4, 
-    name: '证婚环节', 
-    script: '现在进入证婚环节，请证婚人入场。', 
-    music: '/audio/林俊杰-交换余生.mp3',
-    musicName: '交换余生',
-    musicSource: 'preset4',
-    isPreset: true, 
-    duration: 10 
-  },
-  { 
     id: 5, 
     name: '交换戒指', 
     script: '请新人交换戒指，这枚戒指代表着你们彼此的承诺和永恒的爱情。', 
@@ -60,24 +50,24 @@ export const defaultProgram = [
     duration: 5 
   },
   { 
+    id: 4, 
+    name: '证婚环节', 
+    script: '现在进入证婚环节，请证婚人入场。', 
+    music: '/audio/泽凉 - 花海钢琴版.mp3',
+    musicName: '花海钢琴版',
+    musicSource: 'preset8',
+    isPreset: true,
+    duration: 5 
+  },
+  { 
     id: 6, 
-    name: '新人致辞', 
-    script: '现在有请新人发表他们的爱情宣言和对在场来宾的感谢。', 
+    name: '父母致辞', 
+    script: '现在有双方父母致辞', 
     music: '/audio/这世界那么多人-莫文蔚.mp3',
     musicName: '这世界那么多人',
     musicSource: 'preset6',
     isPreset: true, 
     duration: 10 
-  },
-  { 
-    id: 7, 
-    name: '敬酒环节', 
-    script: '请各位来宾准备好手中的酒杯，让我们共同祝福这对新人！干杯！', 
-    music: '/audio/给你们.mp3',
-    musicName: '给你们',
-    musicSource: 'preset5',
-    isPreset: true, 
-    duration: 20 
   },
   { 
     id: 8, 
@@ -90,6 +80,16 @@ export const defaultProgram = [
     duration: 5 
   },
   { 
+    id: 7, 
+    name: '合照环节', 
+    script: '现在进入合照环节', 
+    music: '/audio/给你们.mp3',
+    musicName: '给你们',
+    musicSource: 'preset5',
+    isPreset: true, 
+    duration: 20 
+  },
+  { 
     id: 9, 
     name: '婚礼结束', 
     script: '感谢各位的到来，分享新人的喜悦，婚礼到此结束，请大家继续享用美食，祝各位宾客生活愉快！', 
@@ -98,5 +98,15 @@ export const defaultProgram = [
     musicSource: 'preset1',
     isPreset: true, 
     duration: 10 
+  },
+  { 
+    id: 10, 
+    name: '敬酒环节', 
+    script: '现在进入合照环节', 
+    music: '/audio/给你们.mp3',
+    musicName: '给你们',
+    musicSource: 'preset5',
+    isPreset: true, 
+    duration: 20 
   },
 ];
